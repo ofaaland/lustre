@@ -668,6 +668,31 @@ your distribution.
 			AC_DEFINE(HAVE_DMU_TX_MARK_NETFREE, 1,
 				[Have dmu_tx_mark_netfree])
 		])
+		dnl #
+		dnl # ZFS 0.7.10 changes timestruc_t to inode_timespec_t
+		dnl #
+		LB_CHECK_COMPILE([if SPL has 'inode_timespec_t'],
+		zfs_have_inode_timespec, [
+			#include <sys/fs/zfs.h>
+		],[
+			inode_timespec_t now;
+			gethrestime(&now);
+		],[
+			AC_DEFINE(HAVE_ZFS_INODE_TIMESPEC, 1,
+				[Have inode_timespec_t])
+		])
+		dnl # ZFS 0.7.12/0.8.x uses zfs_refcount_add() instead of
+		dnl # refcount_add().
+		dnl #
+		LB_CHECK_COMPILE([if ZFS has 'zfs_refcount_add'],
+		zfs_refcount_add, [
+			#include <sys/refcount.h>
+		],[
+			zfs_refcount_add((zfs_refcount_t *) NULL, NULL);
+		],[
+			AC_DEFINE(HAVE_ZFS_REFCOUNT_ADD, 1,
+				[Have zfs_refcount_add])
+		])
 	])
 
 	AM_CONDITIONAL(ZFS_ENABLED, [test "x$enable_zfs" = xyes])
