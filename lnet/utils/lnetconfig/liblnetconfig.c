@@ -4652,6 +4652,25 @@ static int handle_yaml_show_stats(struct cYAML *tree, struct cYAML **show_rc,
 				      show_rc, err_rc);
 }
 
+static int handle_yaml_match_route(struct cYAML *tree, struct cYAML **match_rc,
+				  struct cYAML **err_rc)
+{
+	return 0;
+}
+
+static int handle_yaml_match_net(struct cYAML *tree, struct cYAML **match_rc,
+				struct cYAML **err_rc)
+{
+	return 0;
+}
+
+static int handle_yaml_match_routing(struct cYAML *tree, struct cYAML **match_rc,
+				    struct cYAML **err_rc)
+{
+	return 0;
+}
+
+
 static int handle_yaml_config_numa(struct cYAML *tree, struct cYAML **show_rc,
 				  struct cYAML **err_rc)
 {
@@ -4686,6 +4705,8 @@ static int handle_yaml_show_numa(struct cYAML *tree, struct cYAML **show_rc,
 	return lustre_lnet_show_numa_range(seq_no ? seq_no->cy_valueint : -1,
 					   show_rc, err_rc);
 }
+
+
 
 static int handle_yaml_config_global_settings(struct cYAML *tree,
 					      struct cYAML **show_rc,
@@ -4935,6 +4956,20 @@ static struct lookup_cmd_hdlr_tbl lookup_del_tbl[] = {
 	{ .name = "discover",	.cb = handle_yaml_no_op },
 	{ .name = NULL } };
 
+static struct lookup_cmd_hdlr_tbl lookup_match_tbl[] = {
+	{ .name = "route",	.cb = handle_yaml_match_route },
+	{ .name = "net",	.cb = handle_yaml_match_net },
+	{ .name = "peer",	.cb = handle_yaml_no_op },
+	{ .name = "ip2nets",	.cb = handle_yaml_no_op },
+	{ .name = "routing",	.cb = handle_yaml_match_routing },
+	{ .name = "buffers",	.cb = handle_yaml_no_op },
+	{ .name = "statistics",	.cb = handle_yaml_no_op },
+	{ .name = "global",	.cb = handle_yaml_no_op},
+	{ .name = "numa",	.cb = handle_yaml_no_op },
+	{ .name = "ping",	.cb = handle_yaml_no_op },
+	{ .name = "discover",	.cb = handle_yaml_no_op },
+	{ .name = NULL } };
+
 static struct lookup_cmd_hdlr_tbl lookup_show_tbl[] = {
 	{ .name = "route",	.cb = handle_yaml_show_route },
 	{ .name = "net",	.cb = handle_yaml_show_net },
@@ -5034,6 +5069,12 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 {
 	return lustre_yaml_cb_helper(f, lookup_del_tbl,
 				     NULL, err_rc);
+}
+
+int lustre_yaml_match(char *f, struct cYAML **match_rc, struct cYAML **err_rc)
+{
+	return lustre_yaml_cb_helper(f, lookup_match_tbl,
+				     match_rc, err_rc);
 }
 
 int lustre_yaml_show(char *f, struct cYAML **show_rc, struct cYAML **err_rc)

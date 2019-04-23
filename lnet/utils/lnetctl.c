@@ -1464,6 +1464,7 @@ static int jt_import(int argc, char **argv)
 	char *file = NULL;
 	struct cYAML *err_rc = NULL;
 	struct cYAML *show_rc = NULL;
+	struct cYAML *match_rc = NULL;
 	int rc = 0, return_rc = 0, opt, opt_found = 0;
 	char cmd = 'a';
 
@@ -1471,6 +1472,7 @@ static int jt_import(int argc, char **argv)
 	static const struct option long_options[] = {
 		{ .name = "add",  .has_arg = no_argument, .val = 'a' },
 		{ .name = "del",  .has_arg = no_argument, .val = 'd' },
+		{ .name = "match",.has_arg = no_argument, .val = 'm' },
 		{ .name = "show", .has_arg = no_argument, .val = 's' },
 		{ .name = "exec", .has_arg = no_argument, .val = 'e' },
 		{ .name = "help", .has_arg = no_argument, .val = 'h' },
@@ -1495,12 +1497,16 @@ static int jt_import(int argc, char **argv)
 			       "import < FILE : import a file\n"
 			       "\t--add: add configuration\n"
 			       "\t--del: delete configuration\n"
+			       "\t--match: match configuration\n"
 			       "\t--show: show configuration\n"
 			       "\t--exec: execute command\n"
 			       "\t--help: display this help\n"
 			       "If no command option is given then --add"
 			       " is assumed by default\n");
 			return 0;
+		case 'm':
+			cmd = opt;
+			break;
 		default:
 			return 0;
 		}
@@ -1521,6 +1527,12 @@ static int jt_import(int argc, char **argv)
 		break;
 	case 'd':
 		rc = lustre_yaml_del(file, &err_rc);
+		break;
+	case 'm':
+		rc = lustre_yaml_config(file, &err_rc);
+		return_rc = lustre_yaml_exec(file, &match_rc, &err_rc);
+		cYAML_print_tree(match_rc);
+		cYAML_free_tree(match_rc);
 		break;
 	case 's':
 		rc = lustre_yaml_show(file, &show_rc, &err_rc);
