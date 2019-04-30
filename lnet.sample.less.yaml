@@ -1,0 +1,19 @@
+net:
+    - net type: tcp
+      local NI(s):
+        - tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0,1]"
+route:
+peer:
+    - primary nid: 0@lo
+      Multi-Rail: False
+      peer ni:
+        - nid: 0@lo
+global:
+    numa_range: 0
+    max_intf: 200
+    discovery: 1

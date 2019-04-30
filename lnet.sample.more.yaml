@@ -1,0 +1,37 @@
+net:
+    - net type: tcp
+      local NI(s):
+        - tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0,1]"
+    - net type: tcp1
+      local NI(s):
+        - interfaces:
+              0: enp0s8
+          tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0,1]"
+route:
+    - net: tcp2
+      gateway: 192.168.56.1@tcp1
+      hop: -1
+      priority: 0
+peer:
+    - primary nid: 0@lo
+      Multi-Rail: False
+      peer ni:
+        - nid: 0@lo
+    - primary nid: 192.168.56.1@tcp1
+      Multi-Rail: False
+      peer ni:
+        - nid: 192.168.56.1@tcp1
+global:
+    numa_range: 0
+    max_intf: 200
+    discovery: 1
