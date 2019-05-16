@@ -963,9 +963,7 @@ static int osd_declare_attr_set(const struct lu_env *env,
 		}
 	}
 #ifdef ZFS_PROJINHERIT
-	if (attr && attr->la_valid & LA_PROJID) {
-		if (!osd->od_projectused_dn)
-			GOTO(out, rc = -EOPNOTSUPP);
+	if (attr && attr->la_valid & LA_PROJID && osd->od_projectused_dn) { 
 
 		/* Usually, if project quota is upgradable for the device,
 		 * then the upgrade will be done before or when mount the
