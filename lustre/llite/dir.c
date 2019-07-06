@@ -225,6 +225,9 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 
 	page = ll_get_dir_page(inode, op_data, pos, &chain);
 
+	CDEBUG(D_VFSTRACE, "VFS inode="DFID" pos=%llu\n",
+	    PFID(ll_inode2fid(inode)), pos);
+
 	while (rc == 0 && !done) {
 		struct lu_dirpage *dp;
 		struct lu_dirent  *ent;
@@ -247,10 +250,14 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 			__u64          ino;
 
 			hash = le64_to_cpu(ent->lde_hash);
+			namelen = le16_to_cpu(ent->lde_namelen);
+
+			CDEBUG(D_VFSTRACE, "VFS inode="DFID" dp=%p ent=%p hash=%llu pos=%llu namelen=%d\n",
+			    PFID(ll_inode2fid(inode)), dp, ent, hash, pos, namelen);
+
 			if (hash < pos) /* Skip until we find target hash */
 				continue;
 
-			namelen = le16_to_cpu(ent->lde_namelen);
 			if (namelen == 0) /* Skip dummy record */
 				continue;
 
