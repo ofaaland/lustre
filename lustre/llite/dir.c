@@ -279,6 +279,8 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 			done = filldir(cookie, ent->lde_name, namelen, lhash,
 				       ino, type);
 #endif
+			CDEBUG(D_VFSTRACE, "VFS inode="DFID" dp=%p done=%d ent=%p lhash=%llu ino=%llu name=%s\n",
+			    PFID(ll_inode2fid(inode)), dp, done, ent, lhash, ino, ent->lde_name);
 		}
 
 		if (done) {
@@ -289,6 +291,8 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 
 		next = le64_to_cpu(dp->ldp_hash_end);
 		pos = next;
+		CDEBUG(D_VFSTRACE, "VFS inode="DFID" dp=%p ent=%p pos=%llu MDS_DIR_END_OFF=%llu name=%s\n",
+		    PFID(ll_inode2fid(inode)), dp, ent, pos, (long long unsigned int)MDS_DIR_END_OFF, ent->lde_name);
 		if (pos == MDS_DIR_END_OFF) {
 			/*
 			 * End of directory reached.
