@@ -202,6 +202,14 @@ static u16 ll_dirent_type_get(struct lu_dirent *ent)
 	return type;
 }
 
+static inline void
+dump_dir_entry(struct lu_dirent *ent)
+{
+  CDEBUG(D_VFSTRACE, "VFS ent=%p reclen=%u hash=%llu attrs=%u name=%s\n",
+  ent, __le16_to_cpu(ent->lde_reclen), __le64_to_cpu(ent->lde_hash),
+  __le32_to_cpu(ent->lde_attrs), ent->lde_name);
+}
+
 #ifdef HAVE_DIR_CONTEXT
 int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 		struct dir_context *ctx)
@@ -242,7 +250,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 		hash = MDS_DIR_END_OFF;
 		dp = page_address(page);
 		for (ent = lu_dirent_start(dp); ent != NULL && !done;
-		     ent = lu_dirent_next(ent)) {
+		     dump_dir_entry(ent), ent = lu_dirent_next(ent)) {
 			__u16          type;
 			int            namelen;
 			struct lu_fid  fid;
