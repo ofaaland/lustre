@@ -102,12 +102,7 @@ lnet_dyn_configure_net(struct libcfs_ioctl_hdr *hdr)
 		return -EINVAL;
 
 	mutex_lock(&lnet_config_mutex);
-	if (the_lnet.ln_niinit_self)
-		rc = lnet_dyn_add_net(conf);
-	else {
-		CERROR("failed to configure: ln_niinit_self %d\n", the_lnet.ln_niinit_self);
-		rc = -EINVAL;
-	}
+	rc = lnet_dyn_add_net(conf);
 	mutex_unlock(&lnet_config_mutex);
 
 	return rc;
@@ -124,12 +119,7 @@ lnet_dyn_unconfigure_net(struct libcfs_ioctl_hdr *hdr)
 		return -EINVAL;
 
 	mutex_lock(&lnet_config_mutex);
-	if (the_lnet.ln_niinit_self)
-		rc = lnet_dyn_del_net(conf->cfg_net);
-	else {
-		CERROR("failed to configure: ln_niinit_self %d\n", the_lnet.ln_niinit_self);
-		rc = -EINVAL;
-	}
+	rc = lnet_dyn_del_net(conf->cfg_net);
 	mutex_unlock(&lnet_config_mutex);
 
 	return rc;
@@ -146,12 +136,7 @@ lnet_dyn_configure_ni(struct libcfs_ioctl_hdr *hdr)
 		return -EINVAL;
 
 	mutex_lock(&lnet_config_mutex);
-	if (the_lnet.ln_niinit_self)
-		rc = lnet_dyn_add_ni(conf);
-	else {
-		CERROR("failed to configure: ln_niinit_self %d\n", the_lnet.ln_niinit_self);
-		rc = -EINVAL;
-	}
+	rc = lnet_dyn_add_ni(conf);
 	mutex_unlock(&lnet_config_mutex);
 
 	return rc;
@@ -168,12 +153,7 @@ lnet_dyn_unconfigure_ni(struct libcfs_ioctl_hdr *hdr)
 		return -EINVAL;
 
 	mutex_lock(&lnet_config_mutex);
-	if (the_lnet.ln_niinit_self)
-		rc = lnet_dyn_del_ni(conf);
-	else {
-		CERROR("failed to configure: ln_niinit_self %d\n", the_lnet.ln_niinit_self);
-		rc = -EINVAL;
-	}
+	rc = lnet_dyn_del_ni(conf);
 	mutex_unlock(&lnet_config_mutex);
 
 	return rc;
