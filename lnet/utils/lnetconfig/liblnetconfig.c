@@ -4707,7 +4707,10 @@ static int handle_yaml_show_numa(struct cYAML *tree, struct cYAML **show_rc,
 }
 
 
-
+/*
+ * XXX Use this for lookup_match_tbl?  Or create a new one that
+ * sets any unspecified globals to default values?
+ */
 static int handle_yaml_config_global_settings(struct cYAML *tree,
 					      struct cYAML **show_rc,
 					      struct cYAML **err_rc)

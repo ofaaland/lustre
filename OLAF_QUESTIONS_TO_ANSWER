@@ -1,0 +1,11 @@
+olaf questions to answer
+
+User interface:
+1. What is desired behavior for "match" with YAML including "global"?
+"global" contains a list of several global settings. What, if anything,
+should we do to global values _NOT_ mentioned?  Ideas:
+1. Set them to default values, if they aren't already.  This seems most
+consistent with the idea of match (AKA reconcile) - make the system look like
+what is in YAML
+2. Leave them unchanged
+
