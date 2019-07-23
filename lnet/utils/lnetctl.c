@@ -1529,7 +1529,7 @@ static int jt_import(int argc, char **argv)
 		rc = lustre_yaml_del(file, &err_rc);
 		break;
 	case 'm':
-		rc = lustre_yaml_config(file, &err_rc);
+		rc = lustre_yaml_match(file, &err_rc);
 		return_rc = lustre_yaml_exec(file, &match_rc, &err_rc);
 		cYAML_print_tree(match_rc);
 		cYAML_free_tree(match_rc);

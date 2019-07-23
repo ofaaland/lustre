@@ -4655,7 +4655,19 @@ static int handle_yaml_show_stats(struct cYAML *tree, struct cYAML **show_rc,
 static int handle_yaml_match_route(struct cYAML *tree, struct cYAML **match_rc,
 				  struct cYAML **err_rc)
 {
-	return 0;
+	int rc = 0;
+
+	printf("handling match route.\n");
+	cYAML_print_tree(tree);
+/*
+	rc = lustre_lnet_show_route( NULL, NULL, -1, -1, 0, -1,
+				      NULL, err_rc, true);
+
+	printf("rc %d\n", rc);
+*/
+
+	return rc;
+
 }
 
 static int handle_yaml_match_net(struct cYAML *tree, struct cYAML **match_rc,
@@ -4663,13 +4675,6 @@ static int handle_yaml_match_net(struct cYAML *tree, struct cYAML **match_rc,
 {
 	return 0;
 }
-
-static int handle_yaml_match_routing(struct cYAML *tree, struct cYAML **match_rc,
-				    struct cYAML **err_rc)
-{
-	return 0;
-}
-
 
 static int handle_yaml_config_numa(struct cYAML *tree, struct cYAML **show_rc,
 				  struct cYAML **err_rc)
@@ -4964,11 +4969,11 @@ static struct lookup_cmd_hdlr_tbl lookup_match_tbl[] = {
 	{ .name = "net",	.cb = handle_yaml_match_net },
 	{ .name = "peer",	.cb = handle_yaml_no_op },
 	{ .name = "ip2nets",	.cb = handle_yaml_no_op },
-	{ .name = "routing",	.cb = handle_yaml_match_routing },
-	{ .name = "buffers",	.cb = handle_yaml_no_op },
+	{ .name = "routing",	.cb = handle_yaml_config_routing },
+	{ .name = "buffers",	.cb = handle_yaml_config_buffers },
 	{ .name = "statistics",	.cb = handle_yaml_no_op },
 	{ .name = "global",	.cb = handle_yaml_no_op},
-	{ .name = "numa",	.cb = handle_yaml_no_op },
+	{ .name = "numa",	.cb = handle_yaml_config_numa },
 	{ .name = "ping",	.cb = handle_yaml_no_op },
 	{ .name = "discover",	.cb = handle_yaml_no_op },
 	{ .name = NULL } };
@@ -5074,10 +5079,68 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 				     NULL, err_rc);
 }
 
-int lustre_yaml_match(char *f, struct cYAML **match_rc, struct cYAML **err_rc)
+int lustre_yaml_match(char *f, struct cYAML **err_rc)
 {
+	struct cYAML *tree;
+	struct cYAML *route;
+	struct cYAML *net;
+	int rc = 0;
+
+	/*
+	 * The existing sub-commands use lustre_yaml_cb_helper(), which
+	 * processes each subtree (each ni, or route, etc.) in the input tree
+	 * one at a time.  It calls a function from the function table for each.
+	 *
+	 * A reconcile or match cannot be performed only this way.
+	 * Specifically, elements in the live config which must be removed,
+	 * cannot be detected without iterating over each live configuration
+	 * element and checking for them in the desired config.
+	 *
+	 * However we do this, we want to add new NIs and routes before we
+	 * remove undesired ones.  If we are changing the route to net X from
+	 * gateway A to gateway B, and if gateway A works but is suboptimal (ie
+	 * goes to another building and then comes back) then by adding B first,
+	 * we never have a no-route configuration.
+	 *
+	 * Options:
+	 * 1. Pass 1: lustre_yaml_cb_helper();
+	 *    Pass 2: compare live config with YAML and prune undesired elements
+	 * 2. Write a function that creates a hash of both live and desired
+	 *    elements, and does adds and removes
+	 * 3. Pass 1: compare YAML trees, producing "undesired" tree
+	 *    Pass 2: pass "undesired" tree to lustre_yaml_cb_helper()
+	 *    Pass 3: pass "desired" tree to lustre_yaml_cb_helper()
+	 */
+
+
+	/* Try Option 1 */
+/*
+	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
+				     NULL, err_rc);
+	if (rc)
+		goto out;
+*/
+
+	tree = cYAML_build_tree(f, NULL, 0, err_rc, false);
+	if (tree == NULL)
+		return LUSTRE_CFG_RC_BAD_PARAM;
+
+	printf("Printing input net tree.\n");
+	net = cYAML_get_object_item(tree, "net");
+	cYAML_print_tree(net);
+
+	printf("Printing input route tree.\n");
+	route = cYAML_get_object_item(tree, "route");
+	cYAML_print_tree(route);
+
+	printf("\ncalling cb helper.\n");
 	return lustre_yaml_cb_helper(f, lookup_match_tbl,
-				     match_rc, err_rc);
+				     NULL, err_rc);
+
+/*
+out:
+*/
+	return rc;
 }
 
 int lustre_yaml_show(char *f, struct cYAML **show_rc, struct cYAML **err_rc)
