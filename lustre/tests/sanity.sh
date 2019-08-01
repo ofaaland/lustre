@@ -20961,6 +20961,22 @@ test_415() {
 	kill -9 $setattr_pid
 
 	echo "rename $total files took $duration sec"
+	if [[ $mds1_FSTYPE = zfs ]] ; then
+		echo "list kstats mds1"
+		do_facet mds1 ls -lR /proc/spl/kstat/zfs/
+		echo "txgs kstat mds1"
+		do_facet mds1 tail -n 100 "/proc/spl/kstat/zfs/*/txgs"
+		echo "dmu_tx_assign kstat mds1"
+		do_facet mds1 tail -n 100 "/proc/spl/kstat/zfs/*/dmu_tx_assign"
+		if [[ $MDSCOUNT -gt 1 ]]; then
+			echo "list kstats mds2"
+			do_facet mds2 ls -lR /proc/spl/kstat/zfs/
+			echo "txgs kstat mds2"
+			do_facet mds2 tail -n 100 "/proc/spl/kstat/zfs/*/txgs"
+			echo "dmu_tx_assign kstat mds2"
+			do_facet mds2 tail -n 100 "/proc/spl/kstat/zfs/*/dmu_tx_assign"
+		fi
+	fi
 	[ $duration -lt 100 ] || error "rename took $duration sec"
 }
 run_test 415 "lock revoke is not missing"
