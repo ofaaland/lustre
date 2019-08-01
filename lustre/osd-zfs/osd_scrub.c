@@ -97,7 +97,7 @@ static int osd_scrub_refresh_mapping(const struct lu_env *env,
 				   sizeof(info->oti_str), &dn);
 	osd_tx_hold_zap(tx, zapid, dn,
 			ops == DTO_INDEX_INSERT ? TRUE : FALSE, NULL);
-	rc = -dmu_tx_assign(tx, TXG_WAIT);
+	rc = -dmu_tx_assign(tx, TXG_WAIT|TXG_NOTHROTTLE);
 	if (rc) {
 		dmu_tx_abort(tx);
 		GOTO(log, rc);

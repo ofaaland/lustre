@@ -364,7 +364,7 @@ static void osd_obj_set_blksize(const struct lu_env *env,
 	}
 
 	dmu_tx_hold_bonus(tx, dn->dn_object);
-	rc = -dmu_tx_assign(tx, TXG_WAIT);
+	rc = -dmu_tx_assign(tx, TXG_WAIT|TXG_NOTHROTTLE);
 	if (rc) {
 		dmu_tx_abort(tx);
 		CERROR("%s: fail to assign tx to set blksize for "DFID

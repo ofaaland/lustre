@@ -187,7 +187,7 @@ static int osd_obj_create(const struct lu_env *env, struct osd_device *o,
 	dmu_tx_hold_bonus(tx, parent);
 	dmu_tx_hold_zap(tx, parent, TRUE, name);
 	dmu_tx_hold_sa_create(tx, ZFS_SA_BASE_ATTR_SIZE);
-	rc = -dmu_tx_assign(tx, TXG_WAIT);
+	rc = -dmu_tx_assign(tx, TXG_WAIT|TXG_NOTHROTTLE);
 	if (rc) {
 		dmu_tx_abort(tx);
 		GOTO(out, rc);
