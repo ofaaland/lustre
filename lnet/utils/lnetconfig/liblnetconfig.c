@@ -5084,6 +5084,7 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	struct cYAML *tree;
 	struct cYAML *route;
 	struct cYAML *net;
+	struct cYAML *child, *item;
 	int rc = 0;
 
 	/*
@@ -5114,12 +5115,24 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 
 
 	/* Try Option 1 */
-/*
+	/*
+	 * First, add everything in the provided YAML, ignoring EEXIST.
+	 */
 	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
 				     NULL, err_rc);
-	if (rc)
-		goto out;
-*/
+
+	child = (*err_rc)->cy_child->cy_child;
+	printf("Examining error tree.\n");
+	while (child != NULL) {
+		item = cYAML_get_object_item(child, "errno");
+		if (item && item->cy_type == CYAML_TYPE_NUMBER) {
+			if (item->cy_valueint && item->cy_valueint != -EEXIST)
+				goto out;
+		} else {
+			goto out;
+		}
+		child = child->cy_next;
+	}
 
 	tree = cYAML_build_tree(f, NULL, 0, err_rc, false);
 	if (tree == NULL)
@@ -5137,9 +5150,8 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	return lustre_yaml_cb_helper(f, lookup_match_tbl,
 				     NULL, err_rc);
 
-/*
 out:
-*/
+	cYAML_print_tree(*err_rc);
 	return rc;
 }
 
