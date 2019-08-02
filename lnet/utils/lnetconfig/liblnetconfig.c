@@ -5079,13 +5079,47 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 				     NULL, err_rc);
 }
 
+static int lustre_live_routes()
+{
+	struct lnet_ioctl_config_data data;
+	int rc = LUSTRE_CFG_RC_OUT_OF_MEM;
+	int l_errno = 0;
+	int i;
+
+	errno = 0;
+	for (i = 0;; i++) {
+		LIBCFS_IOC_INIT_V2(data, cfg_hdr);
+		data.cfg_count = i;
+
+		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_GET_ROUTE, &data);
+		if (rc != 0) {
+			if (errno != ENOENT) {
+				l_errno = errno;
+				printf("ioctl returned %d errno %d\n", rc, l_errno);
+			}
+			break;
+		}
+
+		/* default rc to -1 incase we hit the goto */
+		rc = -1;
+
+		printf("route>  net: %s  gw: %s\n",
+		    libcfs_net2str(data.cfg_net), libcfs_nid2str(data.cfg_nid));
+	}
+
+	if (l_errno)
+		printf("failed with errno %d\n", l_errno);
+	return rc;
+}
+
 int lustre_yaml_match(char *f, struct cYAML **err_rc)
 {
 	struct cYAML *tree;
 	struct cYAML *route;
-	struct cYAML *net;
 	struct cYAML *child, *item;
 	int rc = 0;
+
+	struct list_head input_routes;
 
 	/*
 	 * The existing sub-commands use lustre_yaml_cb_helper(), which
@@ -5121,6 +5155,7 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
 				     NULL, err_rc);
 
+	errno = 0;
 	child = (*err_rc)->cy_child->cy_child;
 	printf("Examining error tree.\n");
 	while (child != NULL) {
@@ -5138,13 +5173,14 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	if (tree == NULL)
 		return LUSTRE_CFG_RC_BAD_PARAM;
 
-	printf("Printing input net tree.\n");
-	net = cYAML_get_object_item(tree, "net");
-	cYAML_print_tree(net);
-
 	printf("Printing input route tree.\n");
 	route = cYAML_get_object_item(tree, "route");
 	cYAML_print_tree(route);
+
+	INIT_LIST_HEAD(&input_routes);
+
+	printf("Printing live route tree.\n");
+	lustre_live_routes();
 
 	printf("\ncalling cb helper.\n");
 	return lustre_yaml_cb_helper(f, lookup_match_tbl,
