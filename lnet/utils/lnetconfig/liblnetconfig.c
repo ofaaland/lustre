@@ -4652,30 +4652,6 @@ static int handle_yaml_show_stats(struct cYAML *tree, struct cYAML **show_rc,
 				      show_rc, err_rc);
 }
 
-static int handle_yaml_match_route(struct cYAML *tree, struct cYAML **match_rc,
-				  struct cYAML **err_rc)
-{
-	int rc = 0;
-
-	printf("handling match route.\n");
-	cYAML_print_tree(tree);
-/*
-	rc = lustre_lnet_show_route( NULL, NULL, -1, -1, 0, -1,
-				      NULL, err_rc, true);
-
-	printf("rc %d\n", rc);
-*/
-
-	return rc;
-
-}
-
-static int handle_yaml_match_net(struct cYAML *tree, struct cYAML **match_rc,
-				struct cYAML **err_rc)
-{
-	return 0;
-}
-
 static int handle_yaml_config_numa(struct cYAML *tree, struct cYAML **show_rc,
 				  struct cYAML **err_rc)
 {
@@ -4964,20 +4940,6 @@ static struct lookup_cmd_hdlr_tbl lookup_del_tbl[] = {
 	{ .name = "discover",	.cb = handle_yaml_no_op },
 	{ .name = NULL } };
 
-static struct lookup_cmd_hdlr_tbl lookup_match_tbl[] = {
-	{ .name = "route",	.cb = handle_yaml_match_route },
-	{ .name = "net",	.cb = handle_yaml_match_net },
-	{ .name = "peer",	.cb = handle_yaml_no_op },
-	{ .name = "ip2nets",	.cb = handle_yaml_no_op },
-	{ .name = "routing",	.cb = handle_yaml_config_routing },
-	{ .name = "buffers",	.cb = handle_yaml_config_buffers },
-	{ .name = "statistics",	.cb = handle_yaml_no_op },
-	{ .name = "global",	.cb = handle_yaml_no_op},
-	{ .name = "numa",	.cb = handle_yaml_config_numa },
-	{ .name = "ping",	.cb = handle_yaml_no_op },
-	{ .name = "discover",	.cb = handle_yaml_no_op },
-	{ .name = NULL } };
-
 static struct lookup_cmd_hdlr_tbl lookup_show_tbl[] = {
 	{ .name = "route",	.cb = handle_yaml_show_route },
 	{ .name = "net",	.cb = handle_yaml_show_net },
@@ -5038,7 +5000,7 @@ static int lustre_yaml_cb_helper(char *f, struct lookup_cmd_hdlr_tbl *table,
 		cb = lookup_fn(child->cy_string, table);
 		if (cb == NULL) {
 			snprintf(err_str, sizeof(err_str),
-				"\"call back for '%s' not found\"",
+				"\"call back for '%s' not nt lustre_yaml_matchfound\"",
 				child->cy_string);
 			cYAML_build_error(LUSTRE_CFG_RC_BAD_PARAM, -1,
 					"yaml", "helper", err_str, err_rc);
@@ -5079,12 +5041,60 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 				     NULL, err_rc);
 }
 
-static int lustre_live_routes()
+/*
+ *   cYAML* - pointer to the node currently being visitied
+ *   void* - user data passed to the callback.
+ *   void** - output value from the callback
+ *
+ * Returns true to continue recursing.  false to stop recursing
+ * typedef bool (*cYAML_walk_cb)(struct cYAML *, void *, void**);
+ */
+
+static bool lustre_yaml_route_cmp(struct cYAML *node, void *data_v,
+void **out_p)
+{
+	struct lnet_ioctl_config_data *data = data_v;
+	struct cYAML *net;
+	struct cYAML *gw;
+	bool found = false;
+	char *ioctl_net;
+	char *ioctl_nid;
+
+	net = cYAML_get_object_item(node, "net");
+	gw = cYAML_get_object_item(node, "gateway");
+
+	if (!net || !gw)
+		return true;
+
+	ioctl_net = libcfs_net2str(data->cfg_net);
+	ioctl_nid = libcfs_nid2str(data->cfg_nid);
+
+	if (ioctl_net && ioctl_nid &&
+	    strcmp(ioctl_net, net->cy_valuestring) == 0 &&
+	    strcmp(ioctl_nid, gw->cy_valuestring) == 0)
+		found = true;
+
+/*
+	printf("yaml walk net: %s  gw: %s  ioctl net: %s  gw: %s %s\n",
+	    net->cy_valuestring, gw->cy_valuestring, ioctl_net,
+	    ioctl_nid, found ? "MATCHED ROUTE" : "");
+*/
+
+	if (out_p && *out_p)
+		**((int **)out_p) = found;
+
+	return !found;
+}
+
+static int lustre_live_routes(struct cYAML *route)
 {
 	struct lnet_ioctl_config_data data;
 	int rc = LUSTRE_CFG_RC_OUT_OF_MEM;
 	int l_errno = 0;
 	int i;
+	int found;
+	int *found_p = &found;
+
 
 	errno = 0;
 	for (i = 0;; i++) {
@@ -5100,17 +5110,19 @@ static int lustre_live_routes()
 			break;
 		}
 
-		/* default rc to -1 incase we hit the goto */
-		rc = -1;
-
-		printf("route>  net: %s  gw: %s\n",
+		found = false;
+		cYAML_tree_recursive_walk(route, lustre_yaml_route_cmp,
+					      true, &data, (void **)&found_p);
+		printf("%s route>  net: %s  gw: %s\n", found ? "OK" : "DELETE",
 		    libcfs_net2str(data.cfg_net), libcfs_nid2str(data.cfg_nid));
 	}
 
 	if (l_errno)
 		printf("failed with errno %d\n", l_errno);
+
 	return rc;
 }
+
 
 int lustre_yaml_match(char *f, struct cYAML **err_rc)
 {
@@ -5118,8 +5130,6 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	struct cYAML *route;
 	struct cYAML *child, *item;
 	int rc = 0;
-
-	struct list_head input_routes;
 
 	/*
 	 * The existing sub-commands use lustre_yaml_cb_helper(), which
@@ -5150,13 +5160,17 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 
 	/* Try Option 1 */
 	/*
-	 * First, add everything in the provided YAML, ignoring EEXIST.
+	 * First, add everything in the provided YAML.
 	 */
 	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
 				     NULL, err_rc);
 
 	errno = 0;
 	child = (*err_rc)->cy_child->cy_child;
+
+	/*
+	 * Then check for errors, ignoring EEXIST which is OK.
+	 */
 	printf("Examining error tree.\n");
 	while (child != NULL) {
 		item = cYAML_get_object_item(child, "errno");
@@ -5177,17 +5191,9 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	route = cYAML_get_object_item(tree, "route");
 	cYAML_print_tree(route);
 
-	INIT_LIST_HEAD(&input_routes);
-
-	printf("Printing live route tree.\n");
-	lustre_live_routes();
-
-	printf("\ncalling cb helper.\n");
-	return lustre_yaml_cb_helper(f, lookup_match_tbl,
-				     NULL, err_rc);
-
+	printf("Check live route tree for undesired routes.\n");
+	lustre_live_routes(route);
 out:
-	cYAML_print_tree(*err_rc);
 	return rc;
 }
 
