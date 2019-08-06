@@ -5094,6 +5094,7 @@ static int lustre_live_routes(struct cYAML *route)
 	int i;
 	int found;
 	int *found_p = &found;
+	struct cYAML *err_rc;
 
 
 	errno = 0;
@@ -5110,13 +5111,19 @@ static int lustre_live_routes(struct cYAML *route)
 			break;
 		}
 
+		char *net = libcfs_net2str(data.cfg_net);
+		char *nid = libcfs_nid2str(data.cfg_nid);
 		found = false;
+
 		cYAML_tree_recursive_walk(route, lustre_yaml_route_cmp,
 					      true, &data, (void **)&found_p);
 		printf("%s route>  net: %s  gw: %s\n", found ? "OK" : "DELETE",
-		    libcfs_net2str(data.cfg_net), libcfs_nid2str(data.cfg_nid));
+		    net, nid);
+		if (!found)
+			rc = lustre_lnet_del_route(net, nid, -1, &err_rc);
 	}
 
+	cYAML_print_tree(err_rc);
 	if (l_errno)
 		printf("failed with errno %d\n", l_errno);
 
