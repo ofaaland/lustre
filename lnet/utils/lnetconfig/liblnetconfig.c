@@ -5096,7 +5096,6 @@ static int lustre_live_routes(struct cYAML *route)
 	int *found_p = &found;
 	struct cYAML *err_rc;
 
-
 	errno = 0;
 	for (i = 0;; i++) {
 		LIBCFS_IOC_INIT_V2(data, cfg_hdr);
@@ -5117,13 +5116,10 @@ static int lustre_live_routes(struct cYAML *route)
 
 		cYAML_tree_recursive_walk(route, lustre_yaml_route_cmp,
 					      true, &data, (void **)&found_p);
-		printf("%s route>  net: %s  gw: %s\n", found ? "OK" : "DELETE",
-		    net, nid);
 		if (!found)
 			rc = lustre_lnet_del_route(net, nid, -1, &err_rc);
 	}
 
-	cYAML_print_tree(err_rc);
 	if (l_errno)
 		printf("failed with errno %d\n", l_errno);
 
@@ -5176,37 +5172,10 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	/* errno may have been set and not cleared by handlers */
 	errno = 0;
 
-	printf("lustre_yaml_cb_helper returned rc %d\n", rc);
-	rc = LUSTRE_CFG_RC_NO_ERR;
-
 	/*
 	 * Then check for errors, ignoring EEXIST which is OK.
 	 */
-	printf("Examining error tree.\n");
-
-	child = add_err_rc->cy_child->cy_child;
-	while (child != NULL) {
-		char *entity;
-		char *action;
-		long int op_rc;
-
-		if (!child->cy_child)
-			goto out;
-
-		if (!child->cy_child->cy_child)
-			goto out;
-
-		if (child->cy_child->cy_child->cy_type != CYAML_TYPE_NUMBER)
-			goto out;
-
-		entity = child->cy_child->cy_string;
-		op_rc = child->cy_child->cy_child->cy_valueint;
-		action = add_err_rc->cy_child->cy_string,
-		printf("child %s entity: %s  op_rc: %ld\n", action, entity, op_rc);
-
-		child = child->cy_next;
-	}
-
+	rc = LUSTRE_CFG_RC_NO_ERR;
 	child = add_err_rc->cy_child->cy_child;
 	while (child != NULL) {
 		int op_rc;
@@ -5221,13 +5190,6 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 		op_rc = errno_item->cy_valueint;
 		if (op_rc == -EEXIST)
 			op_rc = 0;
-
-		printf("op_rc %ld seq %ld cmd %s entity %s err_str %s\n",
-			op_rc ? errno_item->cy_valueint : 0,
-			seq_no_item ? seq_no_item->cy_valueint : 0,
-			add_err_rc->cy_child->cy_string,
-			child->cy_child->cy_string,
-			op_rc ? descr_item->cy_valuestring : "success");
 
 		cYAML_build_error(
 			op_rc ? errno_item->cy_valueint : 0,
@@ -5249,11 +5211,7 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	if (tree == NULL)
 		return LUSTRE_CFG_RC_BAD_PARAM;
 
-	printf("Printing input route tree.\n");
 	route = cYAML_get_object_item(tree, "route");
-	cYAML_print_tree(route);
-
-	printf("Check live route tree for undesired routes.\n");
 	lustre_live_routes(route);
 
 out:
