@@ -1,0 +1,62 @@
+net:
+    - net type: tcp
+      local NI(s):
+        - interfaces:
+              0: enp0s3
+          tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0]"
+    - net type: tcp1
+      local NI(s):
+        - interfaces:
+              0: enp0s8
+          tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0]"
+    - net type: tcp2
+      local NI(s):
+        - interfaces:
+              0: ib0
+          tunables:
+              peer_timeout: 180
+              peer_credits: 8
+              peer_buffer_credits: 0
+              credits: 256
+          CPT: "[0]"
+route:
+    - net: tcp10
+      gateway: 192.168.56.1@tcp
+      hop: -1
+      priority: 0
+      health_sensitivity: 1
+    - net: tcp11
+      gateway: 192.168.56.1@tcp1
+      hop: -1
+      priority: 0
+      health_sensitivity: 1
+    - net: tcp12
+      gateway: 192.168.56.1@tcp1
+      hop: -1
+      priority: 0
+      health_sensitivity: 1
+    - net: tcp13
+      gateway: 192.168.56.1@tcp1
+      hop: -1
+      priority: 0
+      health_sensitivity: 1
+    - net: ib2
+      gateway: 192.168.56.1@ib0
+      hop: -1
+      priority: 0
+      health_sensitivity: 1
+global:
+    numa_range: 0
+    max_intf: 200
+    discovery: 1
+    drop_asym_route: 0
