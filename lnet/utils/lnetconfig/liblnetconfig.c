@@ -5081,6 +5081,49 @@ void **out_p)
 	return !found;
 }
 
+static int lustre_live_net(struct cYAML *net)
+{
+	struct lnet_ioctl_config_ni ni_data;
+	int rc;
+	int l_errno = 0;
+	int i;
+	int found;
+	int *found_p = &found;
+	struct cYAML *err_rc;
+
+	errno = 0;
+	for (i = 0;; i++) {
+		LIBCFS_IOC_INIT_V2(&ni_data, lic_cfg_hdr);
+		/*
+		 * set the ioc_len to the proper value since INIT assumes
+		 * size of data
+		 */
+		ni_data->lic_cfg_hdr.ioc_len = buf_size;
+		ni_data->lic_idx = i;
+
+		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_GET_LOCAL_NI, &ni_data);
+		if (rc != 0) {
+			l_errno = errno;
+			break;
+		}
+
+		char *net = libcfs_net2str(ni_data.cfg_net);
+		char *nid = libcfs_nid2str(ni_data.cfg_nid);
+		found = false;
+
+		cYAML_tree_recursive_walk(net, lustre_yaml_net_cmp,
+					      true, &data, (void **)&found_p);
+		if (!found)
+			rc = lustre_lnet_del_net(net, nid, -1, &err_rc);
+	}
+
+	if (l_errno)
+		printf("failed with errno %d\n", l_errno);
+
+	return rc;
+}
+
+
 static int lustre_live_routes(struct cYAML *route)
 {
 	struct lnet_ioctl_config_data data;
@@ -5198,26 +5241,31 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	/* Try Option 1 */
 	/*
 	 * First, add everything in the provided YAML.
+	 * Then check for errors, ignoring EEXIST which is OK.
+	 * errno may have been set and not cleared by handlers.
 	 */
 	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
 				     NULL, &add_err_rc);
-	/* errno may have been set and not cleared by handlers */
 	errno = 0;
-
-	/*
-	 * Then check for errors, ignoring EEXIST which is OK.
-	 */
 	rc = lustre_yaml_filter_errs(add_err_rc, err_rc);
 
 	if (rc)
 		goto out;
 
+	/*
+	 * Then, compare the live config against the YAML, and
+	 * remove any unused nets or routes.
+	 */
 	tree = cYAML_build_tree(f, NULL, 0, err_rc, false);
 	if (tree == NULL)
 		return LUSTRE_CFG_RC_BAD_PARAM;
 
 	route = cYAML_get_object_item(tree, "route");
 	lustre_live_routes(route);
+
+	net = cYAML_get_object_item(tree, "net");
+	lustre_live_nets(net);
+
 
 out:
 	return rc;
