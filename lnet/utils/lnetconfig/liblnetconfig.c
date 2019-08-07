@@ -4687,6 +4687,11 @@ static int handle_yaml_show_numa(struct cYAML *tree, struct cYAML **show_rc,
 					   show_rc, err_rc);
 }
 
+
+/*
+ * XXX Use this for lookup_match_tbl?  Or create a new one that
+ * sets any unspecified globals to default values?
+ */
 static int handle_yaml_config_global_settings(struct cYAML *tree,
 					      struct cYAML **show_rc,
 					      struct cYAML **err_rc)
@@ -5034,6 +5039,177 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 {
 	return lustre_yaml_cb_helper(f, lookup_del_tbl,
 				     NULL, err_rc);
+}
+
+/*
+ *   Used to determine whether a route described by the lnet
+ *   ioctl buffer exists in a YAML description of the desired
+ *   configuration of the system.
+ *   
+ *   cYAML* node   - pointer to the node currently being visited
+ *   void*  data_v - lnet ioctl data describing a route in live config
+ *   void** out_p  - set to true if the YAML and ioctl match
+ */
+
+static bool lustre_yaml_route_cmp(struct cYAML *node, void *data_v,
+void **out_p)
+{
+	struct lnet_ioctl_config_data *data = data_v;
+	struct cYAML *net;
+	struct cYAML *gw;
+	bool found = false;
+	char *ioctl_net;
+	char *ioctl_nid;
+
+	net = cYAML_get_object_item(node, "net");
+	gw = cYAML_get_object_item(node, "gateway");
+
+	if (!net || !gw)
+		return true;
+
+	ioctl_net = libcfs_net2str(data->cfg_net);
+	ioctl_nid = libcfs_nid2str(data->cfg_nid);
+
+	if (ioctl_net && ioctl_nid &&
+	    strcmp(ioctl_net, net->cy_valuestring) == 0 &&
+	    strcmp(ioctl_nid, gw->cy_valuestring) == 0)
+		found = true;
+
+	if (out_p && *out_p)
+		**((int **)out_p) = found;
+
+	return !found;
+}
+
+static int lustre_live_routes(struct cYAML *route)
+{
+	struct lnet_ioctl_config_data data;
+	int rc = LUSTRE_CFG_RC_OUT_OF_MEM;
+	int l_errno = 0;
+	int i;
+	int found;
+	int *found_p = &found;
+	struct cYAML *err_rc;
+
+	errno = 0;
+	for (i = 0;; i++) {
+		LIBCFS_IOC_INIT_V2(data, cfg_hdr);
+		data.cfg_count = i;
+
+		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_GET_ROUTE, &data);
+		if (rc != 0) {
+			if (errno != ENOENT) {
+				l_errno = errno;
+			}
+			break;
+		}
+
+		char *net = libcfs_net2str(data.cfg_net);
+		char *nid = libcfs_nid2str(data.cfg_nid);
+		found = false;
+
+		cYAML_tree_recursive_walk(route, lustre_yaml_route_cmp,
+					      true, &data, (void **)&found_p);
+		if (!found)
+			rc = lustre_lnet_del_route(net, nid, -1, &err_rc);
+	}
+
+	if (l_errno)
+		printf("failed with errno %d\n", l_errno);
+
+	return rc;
+}
+
+
+int lustre_yaml_match(char *f, struct cYAML **err_rc)
+{
+	struct cYAML *add_err_rc;
+	struct cYAML *tree;
+	struct cYAML *route;
+	struct cYAML *child;
+	struct cYAML *seq_no_item, *errno_item, *descr_item;
+	int rc = LUSTRE_CFG_RC_NO_ERR;
+
+	/*
+	 * The existing sub-commands use lustre_yaml_cb_helper(), which
+	 * processes each subtree (each ni, or route, etc.) in the input tree
+	 * one at a time.  It calls a function from the function table for each.
+	 *
+	 * A reconcile or match cannot be performed only this way.
+	 * Specifically, elements in the live config which must be removed,
+	 * cannot be detected without iterating over each live configuration
+	 * element and checking for them in the desired config.
+	 *
+	 * However we do this, we want to add new NIs and routes before we
+	 * remove undesired ones.  If we are changing the route to net X from
+	 * gateway A to gateway B, and if gateway A works but is suboptimal (ie
+	 * goes to another building and then comes back) then by adding B first,
+	 * we never have a no-route configuration.
+	 *
+	 * Options:
+	 * 1. Pass 1: lustre_yaml_cb_helper();
+	 *    Pass 2: compare live config with YAML and prune undesired elements
+	 * 2. Write a function that creates a hash of both live and desired
+	 *    elements, and does adds and removes
+	 * 3. Pass 1: compare YAML trees, producing "undesired" tree
+	 *    Pass 2: pass "undesired" tree to lustre_yaml_cb_helper()
+	 *    Pass 3: pass "desired" tree to lustre_yaml_cb_helper()
+	 */
+
+
+	/* Try Option 1 */
+	/*
+	 * First, add everything in the provided YAML.
+	 */
+	rc = lustre_yaml_cb_helper(f, lookup_config_tbl,
+				     NULL, &add_err_rc);
+	/* errno may have been set and not cleared by handlers */
+	errno = 0;
+
+	/*
+	 * Then check for errors, ignoring EEXIST which is OK.
+	 */
+	rc = LUSTRE_CFG_RC_NO_ERR;
+	child = add_err_rc->cy_child->cy_child;
+	while (child != NULL) {
+		int op_rc;
+
+		seq_no_item = cYAML_get_object_item(child, "seq_no");
+		errno_item = cYAML_get_object_item(child, "errno");
+		descr_item = cYAML_get_object_item(child, "descr");
+
+		if (!errno_item || !descr_item)
+			goto out;
+
+		op_rc = errno_item->cy_valueint;
+		if (op_rc == -EEXIST)
+			op_rc = 0;
+
+		cYAML_build_error(
+			op_rc ? errno_item->cy_valueint : 0,
+			seq_no_item ? seq_no_item->cy_valueint : 0,
+			add_err_rc->cy_child->cy_string,
+			child->cy_child->cy_string,
+			op_rc ? descr_item->cy_valuestring : "success",
+			err_rc);
+
+		if (op_rc)
+			rc = LUSTRE_CFG_RC_GENERIC_ERR;
+		child = child->cy_next;
+	}
+
+	if (rc)
+		goto out;
+
+	tree = cYAML_build_tree(f, NULL, 0, err_rc, false);
+	if (tree == NULL)
+		return LUSTRE_CFG_RC_BAD_PARAM;
+
+	route = cYAML_get_object_item(tree, "route");
+	lustre_live_routes(route);
+
+out:
+	return rc;
 }
 
 int lustre_yaml_show(char *f, struct cYAML **show_rc, struct cYAML **err_rc)

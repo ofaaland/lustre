@@ -592,6 +592,17 @@ int lustre_lnet_discover_nid(char *pnid, int force, int seq_no,
 			     struct cYAML **show_rc, struct cYAML **err_rc);
 
 /*
+ * lustre_yaml_match
+ *   Parses the provided YAML file and then calls the specific APIs
+ *   to configure the entities identified in the file, and remove any
+ *   configured entities not in the file.
+ *
+ *   f - YAML file
+ *   err_rc - [OUT] struct cYAML tree describing the error. Freed by caller
+ */
+int lustre_yaml_match(char *f, struct cYAML **err_rc);
+
+/*
  * lustre_yaml_config
  *   Parses the provided YAML file and then calls the specific APIs
  *   to configure the entities identified in the file
