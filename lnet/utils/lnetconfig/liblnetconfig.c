@@ -5120,14 +5120,52 @@ static int lustre_live_routes(struct cYAML *route)
 	return rc;
 }
 
+int lustre_yaml_filter_errs(struct cYAML *in_tree, struct cYAML **out_tree)
+{
+	int rc = LUSTRE_CFG_RC_NO_ERR;
+	struct cYAML *child;
+	struct cYAML *seq_no_item, *errno_item, *descr_item;
+
+	child = in_tree->cy_child->cy_child;
+	while (child != NULL) {
+		int op_rc;
+
+		seq_no_item = cYAML_get_object_item(child, "seq_no");
+		errno_item = cYAML_get_object_item(child, "errno");
+		descr_item = cYAML_get_object_item(child, "descr");
+
+		if (!errno_item || !descr_item)
+			goto out;
+
+		op_rc = errno_item->cy_valueint;
+		if (op_rc == -EEXIST)
+			op_rc = 0;
+
+		cYAML_build_error(
+			op_rc ? errno_item->cy_valueint : 0,
+			seq_no_item ? seq_no_item->cy_valueint : 0,
+			in_tree->cy_child->cy_string,
+			child->cy_child->cy_string,
+			op_rc ? descr_item->cy_valuestring : "success",
+			out_tree);
+
+		if (op_rc)
+			rc = LUSTRE_CFG_RC_GENERIC_ERR;
+		child = child->cy_next;
+	}
+
+	return rc;
+
+out:
+	fprintf(stderr, "Failed to parse YAML err tree\n");
+	return LUSTRE_CFG_RC_GENERIC_ERR;
+}
 
 int lustre_yaml_match(char *f, struct cYAML **err_rc)
 {
 	struct cYAML *add_err_rc;
 	struct cYAML *tree;
 	struct cYAML *route;
-	struct cYAML *child;
-	struct cYAML *seq_no_item, *errno_item, *descr_item;
 	int rc = LUSTRE_CFG_RC_NO_ERR;
 
 	/*
@@ -5169,34 +5207,7 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	/*
 	 * Then check for errors, ignoring EEXIST which is OK.
 	 */
-	rc = LUSTRE_CFG_RC_NO_ERR;
-	child = add_err_rc->cy_child->cy_child;
-	while (child != NULL) {
-		int op_rc;
-
-		seq_no_item = cYAML_get_object_item(child, "seq_no");
-		errno_item = cYAML_get_object_item(child, "errno");
-		descr_item = cYAML_get_object_item(child, "descr");
-
-		if (!errno_item || !descr_item)
-			goto out;
-
-		op_rc = errno_item->cy_valueint;
-		if (op_rc == -EEXIST)
-			op_rc = 0;
-
-		cYAML_build_error(
-			op_rc ? errno_item->cy_valueint : 0,
-			seq_no_item ? seq_no_item->cy_valueint : 0,
-			add_err_rc->cy_child->cy_string,
-			child->cy_child->cy_string,
-			op_rc ? descr_item->cy_valuestring : "success",
-			err_rc);
-
-		if (op_rc)
-			rc = LUSTRE_CFG_RC_GENERIC_ERR;
-		child = child->cy_next;
-	}
+	rc = lustre_yaml_filter_errs(add_err_rc, err_rc);
 
 	if (rc)
 		goto out;
