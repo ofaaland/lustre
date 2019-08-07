@@ -254,5 +254,10 @@ void cYAML_build_error(int rc, int seq_no, char *cmd,
 			char *entity, char *err_str,
 			struct cYAML **root);
 
+void cYAML_tree_recursive_walk(struct cYAML *node, cYAML_walk_cb cb,
+				      bool cb_first,
+				      void *usr_data,
+				      void **out);
+
 
 #endif /* CYAML_H */
