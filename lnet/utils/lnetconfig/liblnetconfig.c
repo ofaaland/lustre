@@ -5081,19 +5081,29 @@ void **out_p)
 	return !found;
 }
 
-static int lustre_live_net(struct cYAML *net)
+static int lustre_live_nets(struct cYAML *net)
 {
-	struct lnet_ioctl_config_ni ni_data;
+	struct lnet_ioctl_config_ni *ni_data;
+	struct lnet_ioctl_config_lnd_tunables *lnd;
+	struct lnet_ioctl_element_stats *stats;
 	int rc;
-	int l_errno = 0;
+	int l_errno = -ENOMEM;
 	int i;
 	int found;
 	int *found_p = &found;
 	struct cYAML *err_rc;
+	size_t buf_size = sizeof(*ni_data) + sizeof(*lnd) + sizeof(*stats);
 
+	ni_data = calloc(1, buf_size);
+	if (ni_data == NULL)
+		goto out;
+
+	l_errno = 0;
 	errno = 0;
 	for (i = 0;; i++) {
-		LIBCFS_IOC_INIT_V2(&ni_data, lic_cfg_hdr);
+		__u32 rc_net;
+
+		LIBCFS_IOC_INIT_V2(*ni_data, lic_cfg_hdr);
 		/*
 		 * set the ioc_len to the proper value since INIT assumes
 		 * size of data
@@ -5101,14 +5111,20 @@ static int lustre_live_net(struct cYAML *net)
 		ni_data->lic_cfg_hdr.ioc_len = buf_size;
 		ni_data->lic_idx = i;
 
-		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_GET_LOCAL_NI, &ni_data);
+		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_GET_LOCAL_NI, ni_data);
 		if (rc != 0) {
 			l_errno = errno;
 			break;
 		}
 
-		char *net = libcfs_net2str(ni_data.cfg_net);
-		char *nid = libcfs_nid2str(ni_data.cfg_nid);
+		rc_net = LNET_NIDNET(ni_data->lic_nid);
+
+		/* lo not created by user */
+		if (LNET_NETTYP(rc_net) == LOLND)
+			continue;
+
+		char *net = libcfs_net2str(rc_net);
+		char *nid = libcfs_nid2str(ni_data->lic_nid);
 		found = false;
 
 		cYAML_tree_recursive_walk(net, lustre_yaml_net_cmp,
@@ -5117,6 +5133,7 @@ static int lustre_live_net(struct cYAML *net)
 			rc = lustre_lnet_del_net(net, nid, -1, &err_rc);
 	}
 
+out:
 	if (l_errno)
 		printf("failed with errno %d\n", l_errno);
 
