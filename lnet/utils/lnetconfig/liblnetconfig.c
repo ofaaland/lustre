@@ -5090,8 +5090,6 @@ static int lustre_live_nets(struct cYAML *net)
 	int l_errno = -ENOMEM;
 	int i;
 	int found;
-	int *found_p = &found;
-	struct cYAML *err_rc;
 	size_t buf_size = sizeof(*ni_data) + sizeof(*lnd) + sizeof(*stats);
 
 	ni_data = calloc(1, buf_size);
@@ -5102,6 +5100,7 @@ static int lustre_live_nets(struct cYAML *net)
 	errno = 0;
 	for (i = 0;; i++) {
 		__u32 rc_net;
+		int j;
 
 		LIBCFS_IOC_INIT_V2(*ni_data, lic_cfg_hdr);
 		/*
@@ -5127,10 +5126,21 @@ static int lustre_live_nets(struct cYAML *net)
 		char *nid = libcfs_nid2str(ni_data->lic_nid);
 		found = false;
 
+		printf("i: %d net: %s nid: %s found %d\n", i, net, nid, found);
+		for (j=0; j<16; j++) {
+			char *s = ni_data->lic_ni_intf[j];
+			if (*s)
+				printf("  interface %d: %s\n", j, s);
+		}
+/*
 		cYAML_tree_recursive_walk(net, lustre_yaml_net_cmp,
-					      true, &data, (void **)&found_p);
-		if (!found)
+		if (!found) {
+			int *found_p = &found;
+			struct cYAML *err_rc;
 			rc = lustre_lnet_del_net(net, nid, -1, &err_rc);
+					      true, &data, (void **)&found_p);
+		}
+*/
 	}
 
 out:
@@ -5226,6 +5236,7 @@ int lustre_yaml_match(char *f, struct cYAML **err_rc)
 	struct cYAML *add_err_rc;
 	struct cYAML *tree;
 	struct cYAML *route;
+	struct cYAML *net;
 	int rc = LUSTRE_CFG_RC_NO_ERR;
 
 	/*
