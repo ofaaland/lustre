@@ -5054,18 +5054,34 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 static bool lustre_yaml_net_cmp(struct cYAML *node, void *data_v,
 void **out_p)
 {
+	struct lnet_ioctl_config_ni *ni_data = data_v;
 	struct cYAML *yaml_intf;
 	struct cYAML *yaml_net;
+	__u32 rc_net;
+	int j;
 
-	/*
-	printf("NET CMP: ");
-	cYAML_print_tree(node);
-	*/
+
+	if (!data_v || !node)
+		return true;
+
+	printf("NET CMP: \n");
 
 	yaml_net = cYAML_get_object_item(node, "net type");
 	yaml_intf = cYAML_get_object_item(node, "interfaces");
 	cYAML_print_tree(yaml_net);
 	cYAML_print_tree(yaml_intf);
+
+		rc_net = LNET_NIDNET(ni_data->lic_nid);
+
+		char *net = libcfs_net2str(rc_net);
+		char *nid = libcfs_nid2str(ni_data->lic_nid);
+
+		printf("net: %s nid: %s\n", net, nid);
+		for (j=0; j<LNET_INTERFACES_NUM; j++) {
+			char *s = ni_data->lic_ni_intf[j];
+			if (*s)
+				printf("  interface %d: %s\n", j, s);
+		}
 
 	return true;
 }
@@ -5142,8 +5158,6 @@ static int lustre_live_nets(struct cYAML *yamlnet)
 	errno = 0;
 	for (i = 0;; i++) {
 		__u32 rc_net;
-		int j;
-
 		LIBCFS_IOC_INIT_V2(*ni_data, lic_cfg_hdr);
 		/*
 		 * set the ioc_len to the proper value since INIT assumes
@@ -5164,18 +5178,8 @@ static int lustre_live_nets(struct cYAML *yamlnet)
 		if (LNET_NETTYP(rc_net) == LOLND)
 			continue;
 
-		char *net = libcfs_net2str(rc_net);
-		char *nid = libcfs_nid2str(ni_data->lic_nid);
-		found = false;
-
-		printf("i: %d net: %s nid: %s found %d\n", i, net, nid, found);
-		for (j=0; j<LNET_INTERFACES_NUM; j++) {
-			char *s = ni_data->lic_ni_intf[j];
-			if (*s)
-				printf("  interface %d: %s\n", j, s);
-		}
 		cYAML_tree_sibling_walk(yamlnet->cy_child, lustre_yaml_net_cmp,
-					  true, &ni_data, (void **)&found_p);
+					  true, ni_data, (void **)&found_p);
 /*
  * 		Args to lnet_del_net almost certainly wrong.
 		if (!found) {
