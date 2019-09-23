@@ -9,16 +9,6 @@ net:
               peer_buffer_credits: 0
               credits: 256
           CPT: "[0]"
-    - net type: tcp1
-      local NI(s):
-        - interfaces:
-              0: enp0s8
-          tunables:
-              peer_timeout: 180
-              peer_credits: 8
-              peer_buffer_credits: 0
-              credits: 256
-          CPT: "[0]"
 route:
     - net: tcp10
       gateway: 192.168.56.1@tcp
