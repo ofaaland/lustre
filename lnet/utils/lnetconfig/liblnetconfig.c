@@ -5127,7 +5127,7 @@ static int lustre_live_nets(struct cYAML *net)
 		found = false;
 
 		printf("i: %d net: %s nid: %s found %d\n", i, net, nid, found);
-		for (j=0; j<16; j++) {
+		for (j=0; j<LNET_INTERFACES_NUM; j++) {
 			char *s = ni_data->lic_ni_intf[j];
 			if (*s)
 				printf("  interface %d: %s\n", j, s);
