@@ -5181,7 +5181,7 @@ static int lustre_live_nets(struct cYAML *yamlnet)
 		if (!found) {
 			int *found_p = &found;
 			struct cYAML *err_rc;
-			rc = lustre_lnet_del_net(net, nid, -1, &err_rc);
+			rc = lustre_lnet_del_ni(net, nid, -1, &err_rc);
 		}
 */
 	}
