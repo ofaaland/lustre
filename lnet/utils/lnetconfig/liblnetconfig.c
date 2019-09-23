@@ -5157,6 +5157,31 @@ void **out_p)
 	return !found;
 }
 
+static int live_lnet_del_ni_helper(struct lnet_ioctl_config_ni *ni_data)
+{
+	int j;
+	int rc = 0;
+	struct lnet_dlc_network_descr nw_descr;
+	struct cYAML *err_rc;
+
+	INIT_LIST_HEAD(&nw_descr.network_on_rule);
+	INIT_LIST_HEAD(&nw_descr.nw_intflist);
+
+	nw_descr.nw_id = LNET_NIDNET(ni_data->lic_nid);
+
+	for (j=0; j<LNET_INTERFACES_NUM; j++) {
+		char *s = ni_data->lic_ni_intf[j];
+		if (!s)
+			continue;
+		rc = lustre_lnet_add_intf_descr(&nw_descr.nw_intflist,
+						s, strlen(s));
+	}
+
+	rc = lustre_lnet_del_ni(&nw_descr, -1, &err_rc);
+
+	return rc;
+}
+
 static int lustre_live_nets(struct cYAML *yamlnet)
 {
 	struct lnet_ioctl_config_ni *ni_data;
@@ -5177,6 +5202,9 @@ static int lustre_live_nets(struct cYAML *yamlnet)
 	errno = 0;
 	for (i = 0;; i++) {
 		__u32 rc_net;
+
+		found = false;
+
 		LIBCFS_IOC_INIT_V2(*ni_data, lic_cfg_hdr);
 		/*
 		 * set the ioc_len to the proper value since INIT assumes
@@ -5199,14 +5227,9 @@ static int lustre_live_nets(struct cYAML *yamlnet)
 
 		cYAML_tree_sibling_walk(yamlnet->cy_child, lustre_yaml_net_cmp,
 					  true, ni_data, (void **)&found_p);
-/*
- * 		Args to lnet_del_net almost certainly wrong.
 		if (!found) {
-			int *found_p = &found;
-			struct cYAML *err_rc;
-			rc = lustre_lnet_del_ni(net, nid, -1, &err_rc);
+			l_errno = live_lnet_del_ni_helper(ni_data);
 		}
-*/
 	}
 
 out:
@@ -5215,7 +5238,6 @@ out:
 
 	return rc;
 }
-
 
 static int lustre_live_routes(struct cYAML *route)
 {
