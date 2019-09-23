@@ -5041,6 +5041,19 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 				     NULL, err_rc);
 }
 
+void cYAML_tree_sibling_walk(struct cYAML *node, cYAML_walk_cb cb,
+				      bool cb_first,
+				      void *usr_data,
+				      void **out)
+{
+	while(node != NULL) {
+		if (!cb(node, usr_data, out))
+			return;
+
+		node = node->cy_next;
+	}
+}
+
 /*
  *   Used to determine whether a net described by the lnet
  *   ioctl buffer exists in a YAML description of the desired
@@ -5057,33 +5070,52 @@ void **out_p)
 	struct lnet_ioctl_config_ni *ni_data = data_v;
 	struct cYAML *yaml_intf;
 	struct cYAML *yaml_net;
+	struct cYAML *tmp_node;
+	char *yaml_net_string;
 	__u32 rc_net;
 	int j;
-
+	bool found = false;
 
 	if (!data_v || !node)
 		return true;
 
-	printf("NET CMP: \n");
-
 	yaml_net = cYAML_get_object_item(node, "net type");
+	yaml_net_string = yaml_net->cy_valuestring;
+
+	rc_net = LNET_NIDNET(ni_data->lic_nid);
+	char *net = libcfs_net2str(rc_net);
+
+	if (strncmp(yaml_net_string, net, 6))
+		goto out;
+
 	yaml_intf = cYAML_get_object_item(node, "interfaces");
-	cYAML_print_tree(yaml_net);
-	cYAML_print_tree(yaml_intf);
-
-		rc_net = LNET_NIDNET(ni_data->lic_nid);
-
-		char *net = libcfs_net2str(rc_net);
-		char *nid = libcfs_nid2str(ni_data->lic_nid);
-
-		printf("net: %s nid: %s\n", net, nid);
-		for (j=0; j<LNET_INTERFACES_NUM; j++) {
-			char *s = ni_data->lic_ni_intf[j];
-			if (*s)
-				printf("  interface %d: %s\n", j, s);
+	tmp_node = yaml_intf->cy_child;
+		while(tmp_node != NULL) {
+			char *yaml_interface = tmp_node->cy_valuestring;
+			for (j=0; j<LNET_INTERFACES_NUM; j++) {
+				char *s = ni_data->lic_ni_intf[j];
+				if (! *s)
+					continue;
+				found = !strcmp(s, yaml_interface);
+				if (found) {
+					printf("yaml  net: %s intf %s\n"
+					       "ioctl net: %s intf %s\n\n",
+						yaml_net_string, yaml_interface,
+						net, s);
+					goto out;
+				}
+			}
+			tmp_node = tmp_node->cy_next;
 		}
 
-	return true;
+out:
+
+
+	if (out_p && *out_p)
+		**((int **)out_p) = found;
+
+	return !found;
+
 }
 /*
  *   Used to determine whether a route described by the lnet
@@ -5123,19 +5155,6 @@ void **out_p)
 		**((int **)out_p) = found;
 
 	return !found;
-}
-
-void cYAML_tree_sibling_walk(struct cYAML *node, cYAML_walk_cb cb,
-				      bool cb_first,
-				      void *usr_data,
-				      void **out)
-{
-	while(node != NULL) {
-		if (!cb(node, usr_data, out))
-			return;
-
-		node = node->cy_next;
-	}
 }
 
 static int lustre_live_nets(struct cYAML *yamlnet)
