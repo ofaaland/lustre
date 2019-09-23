@@ -5042,6 +5042,34 @@ int lustre_yaml_del(char *f, struct cYAML **err_rc)
 }
 
 /*
+ *   Used to determine whether a net described by the lnet
+ *   ioctl buffer exists in a YAML description of the desired
+ *   configuration of the system.
+ *   
+ *   cYAML* node   - pointer to the node currently being visited
+ *   void*  data_v - lnet ioctl data describing a net in live config
+ *   void** out_p  - set to true if the YAML and ioctl match
+ */
+
+static bool lustre_yaml_net_cmp(struct cYAML *node, void *data_v,
+void **out_p)
+{
+	struct cYAML *yaml_intf;
+	struct cYAML *yaml_net;
+
+	/*
+	printf("NET CMP: ");
+	cYAML_print_tree(node);
+	*/
+
+	yaml_net = cYAML_get_object_item(node, "net type");
+	yaml_intf = cYAML_get_object_item(node, "interfaces");
+	cYAML_print_tree(yaml_net);
+	cYAML_print_tree(yaml_intf);
+
+	return true;
+}
+/*
  *   Used to determine whether a route described by the lnet
  *   ioctl buffer exists in a YAML description of the desired
  *   configuration of the system.
@@ -5081,7 +5109,20 @@ void **out_p)
 	return !found;
 }
 
-static int lustre_live_nets(struct cYAML *net)
+void cYAML_tree_sibling_walk(struct cYAML *node, cYAML_walk_cb cb,
+				      bool cb_first,
+				      void *usr_data,
+				      void **out)
+{
+	while(node != NULL) {
+		if (!cb(node, usr_data, out))
+			return;
+
+		node = node->cy_next;
+	}
+}
+
+static int lustre_live_nets(struct cYAML *yamlnet)
 {
 	struct lnet_ioctl_config_ni *ni_data;
 	struct lnet_ioctl_config_lnd_tunables *lnd;
@@ -5090,6 +5131,7 @@ static int lustre_live_nets(struct cYAML *net)
 	int l_errno = -ENOMEM;
 	int i;
 	int found;
+	int *found_p = &found;
 	size_t buf_size = sizeof(*ni_data) + sizeof(*lnd) + sizeof(*stats);
 
 	ni_data = calloc(1, buf_size);
@@ -5132,13 +5174,14 @@ static int lustre_live_nets(struct cYAML *net)
 			if (*s)
 				printf("  interface %d: %s\n", j, s);
 		}
+		cYAML_tree_sibling_walk(yamlnet->cy_child, lustre_yaml_net_cmp,
+					  true, &ni_data, (void **)&found_p);
 /*
-		cYAML_tree_recursive_walk(net, lustre_yaml_net_cmp,
+ * 		Args to lnet_del_net almost certainly wrong.
 		if (!found) {
 			int *found_p = &found;
 			struct cYAML *err_rc;
 			rc = lustre_lnet_del_net(net, nid, -1, &err_rc);
-					      true, &data, (void **)&found_p);
 		}
 */
 	}
