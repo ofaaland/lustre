@@ -821,19 +821,23 @@ char *parameter_opname[] = {
 	[SET_PARAM] = "set_param",
 };
 
+//TODO should output_fp be renamed, be [in/out]?
 /**
  * Read the value of parameter
  *
- * \param[in]	path		full path to the parameter
- * \param[in]	param_name	lctl parameter format of the
+ * \param[in]	  path		full path to the parameter
+ * \param[in]	  param_name	lctl parameter format of the
  *				parameter path
- * \param[in]	popt		set/get param options
+ * \param[in]	  popt		set/get param options
+ * \param[in/out] output_fp     output written to buf and not stdout
+ *                              when buf is not NULL
  *
  * \retval 0 on success.
  * \retval -errno on error.
  */
 static int
-read_param(const char *path, const char *param_name, struct param_opts *popt)
+read_param(const char *path, const char *param_name, 
+	   struct param_opts *popt, FILE* ostream)
 {
 	bool display_path = popt->po_show_path;
 	long page_size = sysconf(_SC_PAGESIZE);
@@ -841,7 +845,7 @@ read_param(const char *path, const char *param_name, struct param_opts *popt)
 	char *buf;
 	int fd;
 
-	/* Read the contents of file to stdout */
+	/* Read the contents of file to ostream (stdout by default) */
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		rc = -errno;
@@ -859,7 +863,6 @@ read_param(const char *path, const char *param_name, struct param_opts *popt)
 		close(fd);
 		return -ENOMEM;
 	}
-
 	while (1) {
 		ssize_t count = read(fd, buf, page_size);
 
@@ -883,7 +886,7 @@ read_param(const char *path, const char *param_name, struct param_opts *popt)
 
 			longbuf = strnchr(buf, count - 1, '\n') != NULL ||
 					  count + strlen(param_name) >= 80;
-			printf("%s=%s", param_name, longbuf ? "\n" : buf);
+			fprintf(ostream, "%s=%s", param_name, longbuf ? "\n" : buf);
 
 			/* Make sure it doesn't print again while looping */
 			display_path = false;
@@ -891,12 +894,17 @@ read_param(const char *path, const char *param_name, struct param_opts *popt)
 			if (!longbuf)
 				continue;
 		}
-
-		if (fwrite(buf, 1, count, stdout) != count) {
+		if (fwrite(buf, 1, count, ostream) != count) {
 			rc = -errno;
-			fprintf(stderr,
-				"error: get_param: write to stdout: %s\n",
-				strerror(errno));
+			if (ostream == stdout) {
+				fprintf(stderr,
+					"error: get_param: write to stdout: %s\n",
+					strerror(errno));
+			} else {
+				fprintf(stderr,
+					"error: get_param: write to buffer: %s\n",
+					strerror(errno));				
+			}
 			break;
 		}
 	}
@@ -905,6 +913,7 @@ read_param(const char *path, const char *param_name, struct param_opts *popt)
 
 	return rc;
 }
+
 
 /**
  * Set a parameter to a specified value
@@ -966,15 +975,20 @@ write_param(const char *path, const char *param_name, struct param_opts *popt,
  * \retval number of bytes written on success.
  * \retval -errno on error and prints error message.
  */
+//MOD have option to print to buffer here, the callers of param_display will say no
 static int
 param_display(struct param_opts *popt, char *pattern, char *value,
-	      enum parameter_operation mode)
+	      enum parameter_operation mode, FILE* output_fp)
 {
 	int dup_count = 0;
 	char **dup_cache;
 	glob_t paths;
 	char *opname = parameter_opname[mode];
 	int rc, i;
+	FILE* ostream;
+	
+	/* list params in stream */
+	ostream = output_fp ? output_fp : stdout;
 
 	rc = cfs_get_param_paths(&paths, "%s", pattern);
 	if (rc != 0) {
@@ -1025,9 +1039,10 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 		switch (mode) {
 		case GET_PARAM:
 			/* Read the contents of file to stdout */
+			//MOD have mode to print to buffer here, specified by how 
 			if (S_ISREG(st.st_mode)) {
 				rc2 = read_param(paths.gl_pathv[i], param_name,
-						 popt);
+						 popt, ostream);
 				if (rc2 < 0 && rc == 0)
 					rc = rc2;
 			}
@@ -1068,7 +1083,8 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 			dup_cache[dup_count++] = strdup(param_name);
 
 			if (popt->po_show_path)
-				printf("%s\n", param_name);
+				// MOD print to buffer here
+				fprintf(ostream, "%s\n", param_name);
 			break;
 		}
 
@@ -1120,7 +1136,7 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 			continue;
 		}
 
-		rc2 = param_display(popt, pathname, value, mode);
+		rc2 = param_display(popt, pathname, value, mode, ostream);
 		if (rc2 != 0 && rc2 != -ENOENT) {
 			/* errors will be printed by param_display() */
 			if (rc == 0)
@@ -1163,11 +1179,19 @@ static int listparam_cmdline(int argc, char **argv, struct param_opts *popt)
 	return optind;
 }
 
+
 int jt_lcfg_listparam(int argc, char **argv)
 {
 	int rc = 0, index, i;
 	struct param_opts popt;
 	char *path;
+
+	//MOD
+	// create a buffer to write to
+	char* data_buf;
+	size_t sizeloc;
+	FILE* ostream = open_memstream(&data_buf, &sizeloc);
+
 
 	memset(&popt, 0, sizeof(popt));
 	index = listparam_cmdline(argc, argv, &popt);
@@ -1188,7 +1212,7 @@ int jt_lcfg_listparam(int argc, char **argv)
 			continue;
 		}
 
-		rc2 = param_display(&popt, path, NULL, LIST_PARAM);
+		rc2 = param_display(&popt, path, NULL, LIST_PARAM, ostream);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: listing '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -1197,6 +1221,10 @@ int jt_lcfg_listparam(int argc, char **argv)
 			continue;
 		}
 	}
+	//MOD
+	fclose(ostream);
+	printf("%s", data_buf);
+	free(data_buf);
 
 	return rc;
 }
@@ -1235,6 +1263,15 @@ int jt_lcfg_getparam(int argc, char **argv)
 	struct param_opts popt;
 	char *path;
 
+	//MOD
+	// create a buffer to write to
+	char* data_buf;
+	size_t sizeloc;
+	FILE* ostream = open_memstream(&data_buf, &sizeloc);
+	
+	
+
+
 	memset(&popt, 0, sizeof(popt));
 	index = getparam_cmdline(argc, argv, &popt);
 	if (index < 0 || index >= argc)
@@ -1253,15 +1290,20 @@ int jt_lcfg_getparam(int argc, char **argv)
 				rc = rc2;
 			continue;
 		}
-
+		//MOD added ostream
 		rc2 = param_display(&popt, path, NULL,
-				   popt.po_only_path ? LIST_PARAM : GET_PARAM);
+				    popt.po_only_path ? LIST_PARAM : GET_PARAM,
+				    ostream);
 		if (rc2 < 0) {
 			if (rc == 0)
 				rc = rc2;
 			continue;
 		}
 	}
+	//MOD
+	fclose(ostream);
+	printf("%s", data_buf);
+	free(data_buf);
 
 	return rc;
 }
@@ -1295,14 +1337,14 @@ int jt_nodemap_info(int argc, char **argv)
 	if (argc == 1 || strcmp("list", argv[1]) == 0) {
 		popt.po_only_path = 1;
 		popt.po_only_dir = 1;
-		rc = param_display(&popt, "nodemap/*", NULL, LIST_PARAM);
+		rc = param_display(&popt, "nodemap/*", NULL, LIST_PARAM, NULL);
 	} else if (strcmp("all", argv[1]) == 0) {
-		rc = param_display(&popt, "nodemap/*/*", NULL, LIST_PARAM);
+		rc = param_display(&popt, "nodemap/*/*", NULL, LIST_PARAM, NULL);
 	} else {
 		char	pattern[PATH_MAX];
 
 		snprintf(pattern, sizeof(pattern), "nodemap/%s/*", argv[1]);
-		rc = param_display(&popt, pattern, NULL, LIST_PARAM);
+		rc = param_display(&popt, pattern, NULL, LIST_PARAM, NULL);
 		if (rc == -ESRCH)
 			fprintf(stderr, "error: nodemap_info: cannot find "
 					"nodemap %s\n", argv[1]);
@@ -1595,7 +1637,7 @@ int jt_lcfg_setparam(int argc, char **argv)
 			continue;
 		}
 
-		rc2 = param_display(&popt, path, value, SET_PARAM);
+		rc2 = param_display(&popt, path, value, SET_PARAM, NULL);
 		if (rc == 0)
 			rc = rc2;
 	}
