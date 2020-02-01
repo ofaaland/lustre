@@ -882,6 +882,13 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 	/* list params in stream */
 	ostream = output_fp ? output_fp : stdout;
 
+	rc = llapi_clean_path(popt->po_show_type, pattern);
+	if (rc < 0) {
+		fprintf(stderr, "error: %s: cleaning %s: %s\n",
+			opname, pattern, strerror(-rc));
+		return rc;
+	}
+
 	rc = cfs_get_param_paths(&paths, "%s", pattern);
 	if (rc != 0) {
 		rc = -errno;
@@ -1095,15 +1102,6 @@ int jt_lcfg_listparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = llapi_clean_path(popt.po_show_type, path);
-		if (rc2 < 0) {
-			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
-				jt_cmdname(argv[0]), path, strerror(-rc2));
-			if (rc == 0)
-				rc = rc2;
-			continue;
-		}
-
 		rc2 = param_display(&popt, path, NULL, LIST_PARAM, ostream);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: listing '%s': %s\n",
@@ -1174,14 +1172,6 @@ int jt_lcfg_getparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = llapi_clean_path(popt.po_show_type, path);
-		if (rc2 < 0) {
-			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
-				jt_cmdname(argv[0]), path, strerror(-rc2));
-			if (rc == 0)
-				rc = rc2;
-			continue;
-		}
 		//MOD added ostream
 		rc2 = param_display(&popt, path, NULL,
 				    popt.po_only_path ? LIST_PARAM : GET_PARAM,
@@ -1518,15 +1508,6 @@ int jt_lcfg_setparam(int argc, char **argv)
 			} else {
 				value = argv[i];
 			}
-		}
-
-		rc2 = llapi_clean_path(popt.po_show_type, path);
-		if (rc2 < 0) {
-			fprintf(stderr, "error: %s: cleaning %s: %s\n",
-				jt_cmdname(argv[0]), path, strerror(-rc2));
-			if (rc == 0)
-				rc = rc2;
-			continue;
 		}
 
 		rc2 = param_display(&popt, path, value, SET_PARAM, NULL);
