@@ -695,9 +695,7 @@ static char *strnchr(const char *p, char c, size_t n)
 /**
  * Turns a lctl parameter string into a procfs/sysfs subdirectory path pattern.
  *
- * \param[in] popt		Used to control parameter usage. For this
- *				function it is used to see if the path has
- *				a added suffix.
+ * \param[in] show_type		!= 0 if we must strip a type suffix from path.
  * \param[in,out] path		lctl parameter string that is turned into
  *				the subdirectory path pattern that is used
  *				to search the procfs/sysfs tree.
@@ -705,16 +703,16 @@ static char *strnchr(const char *p, char c, size_t n)
  * \retval -errno on error.
  */
 static int
-clean_path(struct param_opts *popt, char *path)
+clean_path(unsigned int show_type, char *path)
 {
 	char *nidstr = NULL;
 	char *tmp;
 
-	if (popt == NULL || path == NULL || strlen(path) == 0)
+	if (path == NULL || strlen(path) == 0)
 		return -EINVAL;
 
 	/* If path contains a suffix we need to remove it */
-	if (popt->po_show_type) {
+	if (show_type) {
 		size_t path_end = strlen(path) - 1;
 
 		tmp = path + path_end;
@@ -1097,7 +1095,7 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 		}
 
 		/* Turn param_name into file path format */
-		rc2 = clean_path(popt, param_name);
+		rc2 = clean_path(popt->po_show_type, param_name);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				opname, param_name, strerror(-rc2));
@@ -1203,7 +1201,7 @@ int jt_lcfg_listparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = clean_path(&popt, path);
+		rc2 = clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -1282,7 +1280,7 @@ int jt_lcfg_getparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = clean_path(&popt, path);
+		rc2 = clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -1628,7 +1626,7 @@ int jt_lcfg_setparam(int argc, char **argv)
 			}
 		}
 
-		rc2 = clean_path(&popt, path);
+		rc2 = clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning %s: %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
