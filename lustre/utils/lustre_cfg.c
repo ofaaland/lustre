@@ -892,6 +892,14 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 	rc = cfs_get_param_paths(&paths, "%s", pattern);
 	if (rc != 0) {
 		rc = -errno;
+		/*
+		 * XXX This is broken.
+		 * If user specifies recursion and cfs_get_param_paths() returns
+		 * an error for the top level pattern, then the user will get no
+		 * output but also no error message.
+		 * Maybe the error message is just unecessary in the first
+		 * place.
+		 */
 		if (!popt->po_recursive) {
 			fprintf(stderr, "error: %s: param_path '%s': %s\n",
 				opname, pattern, strerror(errno));
