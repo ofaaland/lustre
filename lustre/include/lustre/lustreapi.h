@@ -128,6 +128,8 @@ struct llapi_stripe_param {
 
 __u32 llapi_pattern_to_lov(uint64_t pattern);
 
+int llapi_clean_path(unsigned int show_type, char *path);
+
 int llapi_file_open_param(const char *name, int flags, mode_t mode,
 			  const struct llapi_stripe_param *param);
 int llapi_file_create_foreign(const char *name, mode_t mode, __u32 type,

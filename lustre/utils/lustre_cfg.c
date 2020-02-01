@@ -59,6 +59,7 @@
 #include <linux/lustre/lustre_cfg.h>
 #include <linux/lustre/lustre_ioctl.h>
 #include <linux/lustre/lustre_ver.h>
+#include <lustre/lustreapi.h>
 
 #include <sys/un.h>
 #include <time.h>
@@ -693,113 +694,6 @@ static char *strnchr(const char *p, char c, size_t n)
 }
 
 /**
- * Turns a lctl parameter string into a procfs/sysfs subdirectory path pattern.
- *
- * \param[in] show_type		!= 0 if we must strip a type suffix from path.
- * \param[in,out] path		lctl parameter string that is turned into
- *				the subdirectory path pattern that is used
- *				to search the procfs/sysfs tree.
- *
- * \retval -errno on error.
- */
-static int
-clean_path(unsigned int show_type, char *path)
-{
-	char *nidstr = NULL;
-	char *tmp;
-
-	if (path == NULL || strlen(path) == 0)
-		return -EINVAL;
-
-	/* If path contains a suffix we need to remove it */
-	if (show_type) {
-		size_t path_end = strlen(path) - 1;
-
-		tmp = path + path_end;
-		switch (*tmp) {
-		case '@':
-		case '=':
-		case '/':
-			*tmp = '\0';
-		default:
-			break;
-		}
-	}
-
-	/* get rid of '\', glob doesn't like it */
-	tmp = strrchr(path, '\\');
-	if (tmp != NULL) {
-		char *tail = path + strlen(path);
-
-		while (tmp != path) {
-			if (*tmp == '\\') {
-				memmove(tmp, tmp + 1, tail - tmp);
-				--tail;
-			}
-			--tmp;
-		}
-	}
-
-	/* Does this path contain a NID string ? */
-	tmp = strchr(path, '@');
-	if (tmp != NULL) {
-		char *find_nid = strdup(path);
-		lnet_nid_t nid;
-
-		if (find_nid == NULL)
-			return -ENOMEM;
-
-		/* First we need to chop off rest after nid string.
-		 * Since find_nid is a clone of path it better have
-		 * '@' */
-		tmp = strchr(find_nid, '@');
-		tmp = strchr(tmp, '.');
-		if (tmp != NULL)
-			*tmp = '\0';
-
-		/* Now chop off the front. */
-		for (tmp = strchr(find_nid, '.'); tmp != NULL;
-		     tmp = strchr(tmp, '.')) {
-			/* Remove MGC to make it NID format */
-			if (!strncmp(++tmp, "MGC", 3))
-				tmp += 3;
-
-			nid = libcfs_str2nid(tmp);
-			if (nid != LNET_NID_ANY) {
-				nidstr = libcfs_nid2str(nid);
-				if (nidstr == NULL)
-					return -EINVAL;
-				break;
-			}
-		}
-		free(find_nid);
-	}
-
-	/* replace param '.' with '/' */
-	for (tmp = strchr(path, '.'); tmp != NULL; tmp = strchr(tmp, '.')) {
-		*tmp++ = '/';
-
-		/* Remove MGC to make it NID format */
-		if (!strncmp(tmp, "MGC", 3))
-			tmp += 3;
-
-		/* There exist cases where some of the subdirectories of the
-		 * the parameter tree has embedded in its name a NID string.
-		 * This means that it is possible that these subdirectories
-		 * could have actual '.' in its name. If this is the case we
-		 * don't want to blindly replace the '.' with '/'. */
-		if (nidstr != NULL) {
-			char *match = strstr(tmp, nidstr);
-
-			if (tmp == match)
-				tmp += strlen(nidstr);
-		}
-	}
-
-	return 0;
-}
-
-/**
  * The application lctl can perform three operations for lustre
  * tunables. This enum defines those three operations which are
  *
@@ -1095,7 +989,7 @@ param_display(struct param_opts *popt, char *pattern, char *value,
 		}
 
 		/* Turn param_name into file path format */
-		rc2 = clean_path(popt->po_show_type, param_name);
+		rc2 = llapi_clean_path(popt->po_show_type, param_name);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				opname, param_name, strerror(-rc2));
@@ -1201,7 +1095,7 @@ int jt_lcfg_listparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = clean_path(popt.po_show_type, path);
+		rc2 = llapi_clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -1280,7 +1174,7 @@ int jt_lcfg_getparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = clean_path(popt.po_show_type, path);
+		rc2 = llapi_clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -1626,7 +1520,7 @@ int jt_lcfg_setparam(int argc, char **argv)
 			}
 		}
 
-		rc2 = clean_path(popt.po_show_type, path);
+		rc2 = llapi_clean_path(popt.po_show_type, path);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: cleaning %s: %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
