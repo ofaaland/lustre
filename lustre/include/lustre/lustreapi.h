@@ -128,7 +128,34 @@ struct llapi_stripe_param {
 
 __u32 llapi_pattern_to_lov(uint64_t pattern);
 
+/**
+ * The application lctl can perform three operations for lustre
+ * tunables. This enum defines those three operations which are
+ *
+ * 1) LIST_PARAM	- list available tunables
+ * 2) GET_PARAM		- report the current setting of a tunable
+ * 3) SET_PARAM		- set the tunable to a new value
+ */
+enum parameter_operation {
+	LIST_PARAM,
+	GET_PARAM,
+	SET_PARAM,
+};
+
+struct param_opts {
+	unsigned int po_only_path:1;
+	unsigned int po_show_path:1;
+	unsigned int po_show_type:1;
+	unsigned int po_recursive:1;
+	unsigned int po_perm:1;
+	unsigned int po_delete:1;
+	unsigned int po_only_dir:1;
+	unsigned int po_file:1;
+};
+
 int llapi_clean_path(unsigned int show_type, char *path);
+int llapi_param_fetch(void *popt_v, char *pattern, char *value,
+	      enum parameter_operation mode, FILE* output_fp);
 
 int llapi_file_open_param(const char *name, int flags, mode_t mode,
 			  const struct llapi_stripe_param *param);

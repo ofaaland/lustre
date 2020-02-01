@@ -351,6 +351,425 @@ llapi_clean_path(unsigned int show_type, char *path)
 }
 
 /**
+ * Display a parameter path in the same format as sysctl.
+ * E.g. obdfilter.lustre-OST0000.stats
+ *
+ * \param[in] filename	file name of the parameter
+ * \param[in] st	parameter file stats
+ * \param[in] popt	set/get param options
+ *
+ * \retval allocated pointer containing modified filename
+ */
+static char *
+display_name(const char *filename, struct stat *st, struct param_opts *popt)
+{
+	size_t suffix_len = 0;
+	char *suffix = NULL;
+	char *param_name;
+	char *tmp;
+
+	if (popt->po_show_type) {
+		if (S_ISDIR(st->st_mode))
+			suffix = "/";
+		else if (S_ISLNK(st->st_mode))
+			suffix = "@";
+		else if (st->st_mode & S_IWUSR)
+			suffix = "=";
+	}
+
+	/* Take the original filename string and chop off the glob addition */
+	tmp = strstr(filename, "/lustre/");
+	if (tmp == NULL) {
+		tmp = strstr(filename, "/lnet/");
+		if (tmp != NULL)
+			tmp += strlen("/lnet/");
+	} else {
+		tmp += strlen("/lustre/");
+	}
+
+	/* Allocate return string */
+	param_name = strdup(tmp);
+	if (param_name == NULL)
+		return NULL;
+
+	/* replace '/' with '.' to match conf_param and sysctl */
+	for (tmp = strchr(param_name, '/'); tmp != NULL; tmp = strchr(tmp, '/'))
+		*tmp = '.';
+
+	/* Append the indicator to entries if needed. */
+	if (popt->po_show_type && suffix != NULL) {
+		suffix_len = strlen(suffix);
+
+		tmp = realloc(param_name, suffix_len + strlen(param_name) + 1);
+		if (tmp != NULL) {
+			param_name = tmp;
+			strncat(param_name, suffix,
+				strlen(param_name) + suffix_len);
+		}
+	}
+
+	return param_name;
+}
+
+/* Find a character in a length limited string */
+/* BEWARE - kernel definition of strnchr has args in different order! */
+static char *strnchr(const char *p, char c, size_t n)
+{
+       if (!p)
+               return (0);
+
+       while (n-- > 0) {
+               if (*p == c)
+                       return ((char *)p);
+               p++;
+       }
+       return (0);
+}
+
+//TODO should output_fp be renamed, be [in/out]?
+/**
+ * Read the value of parameter
+ *
+ * \param[in]	  path		full path to the parameter
+ * \param[in]	  param_name	lctl parameter format of the
+ *				parameter path
+ * \param[in]	  popt		set/get param options
+ * \param[in/out] output_fp     output written to buf and not stdout
+ *                              when buf is not NULL
+ *
+ * \retval 0 on success.
+ * \retval -errno on error.
+ */
+static int
+read_param(const char *path, const char *param_name, 
+	   struct param_opts *popt, FILE* ostream)
+{
+	bool display_path = popt->po_show_path;
+	long page_size = sysconf(_SC_PAGESIZE);
+	int rc = 0;
+	char *buf;
+	int fd;
+
+	/* Read the contents of file to ostream (stdout by default) */
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		rc = -errno;
+		fprintf(stderr,
+			"error: get_param: opening '%s': %s\n",
+			path, strerror(errno));
+		return rc;
+	}
+
+	buf = calloc(1, page_size);
+	if (buf == NULL) {
+		fprintf(stderr,
+			"error: get_param: allocating '%s' buffer: %s\n",
+			path, strerror(errno));
+		close(fd);
+		return -ENOMEM;
+	}
+	while (1) {
+		ssize_t count = read(fd, buf, page_size);
+
+		if (count == 0)
+			break;
+		if (count < 0) {
+			rc = -errno;
+			if (errno != EIO) {
+				fprintf(stderr, "error: get_param: "
+					"reading '%s': %s\n",
+					param_name, strerror(errno));
+			}
+			break;
+		}
+
+		/* Print the output in the format path=value if the value does
+		 * not contain a new line character and the output can fit in
+		 * a single line, else print value on new line */
+		if (display_path) {
+			bool longbuf;
+
+			longbuf = strnchr(buf, count - 1, '\n') != NULL ||
+					  count + strlen(param_name) >= 80;
+			fprintf(ostream, "%s=%s", param_name, longbuf ? "\n" : buf);
+
+			/* Make sure it doesn't print again while looping */
+			display_path = false;
+
+			if (!longbuf)
+				continue;
+		}
+		if (fwrite(buf, 1, count, ostream) != count) {
+			rc = -errno;
+			if (ostream == stdout) {
+				fprintf(stderr,
+					"error: get_param: write to stdout: %s\n",
+					strerror(errno));
+			} else {
+				fprintf(stderr,
+					"error: get_param: write to buffer: %s\n",
+					strerror(errno));				
+			}
+			break;
+		}
+	}
+	close(fd);
+	free(buf);
+
+	return rc;
+}
+
+
+/**
+ * Set a parameter to a specified value
+ *
+ * \param[in] path		full path to the parameter
+ * \param[in] param_name	lctl parameter format of the parameter path
+ * \param[in] popt		set/get param options
+ * \param[in] value		value to set the parameter to
+ *
+ * \retval number of bytes written on success.
+ * \retval -errno on error.
+ */
+static int
+write_param(const char *path, const char *param_name, struct param_opts *popt,
+	    const char *value)
+{
+	int fd, rc = 0;
+	ssize_t count;
+
+	if (value == NULL)
+		return -EINVAL;
+
+	/* Write the new value to the file */
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
+		rc = -errno;
+		fprintf(stderr, "error: set_param: opening '%s': %s\n",
+			path, strerror(errno));
+		return rc;
+	}
+
+	count = write(fd, value, strlen(value));
+	if (count < 0) {
+		rc = -errno;
+		if (errno != EIO) {
+			fprintf(stderr, "error: set_param: setting %s=%s: %s\n",
+				path, value, strerror(errno));
+		}
+	} else if (count < strlen(value)) { /* Truncate case */
+		rc = -EINVAL;
+		fprintf(stderr, "error: set_param: setting %s=%s: "
+			"wrote only %zd\n", path, value, count);
+	} else if (popt->po_show_path) {
+		printf("%s=%s\n", param_name, value);
+	}
+	close(fd);
+
+	return rc;
+}
+
+char *parameter_opname[] = {
+	[LIST_PARAM] = "list_param",
+	[GET_PARAM] = "get_param",
+	[SET_PARAM] = "set_param",
+};
+
+int
+llapi_param_fetch(void *popt_v, char *pattern, char *value,
+	      enum parameter_operation mode, FILE* output_fp)
+{
+	int dup_count = 0;
+	char **dup_cache;
+	glob_t paths;
+	char *opname = parameter_opname[mode];
+	int rc, i;
+	FILE* ostream;
+	struct param_opts *popt = popt_v;
+
+	/* list params in stream */
+	ostream = output_fp ? output_fp : stdout;
+
+	rc = llapi_clean_path(popt->po_show_type, pattern);
+	if (rc < 0) {
+		fprintf(stderr, "error: %s: cleaning %s: %s\n",
+			opname, pattern, strerror(-rc));
+		return rc;
+	}
+
+	rc = cfs_get_param_paths(&paths, "%s", pattern);
+	if (rc != 0) {
+		rc = -errno;
+		/*
+		 * XXX This is broken.
+		 * If user specifies recursion and cfs_get_param_paths() returns
+		 * an error for the top level pattern, then the user will get no
+		 * output but also no error message.
+		 * Maybe the error message is just unecessary in the first
+		 * place.
+		 */
+		if (!popt->po_recursive) {
+			fprintf(stderr, "error: %s: param_path '%s': %s\n",
+				opname, pattern, strerror(errno));
+		}
+		return rc;
+	}
+
+	dup_cache = calloc(paths.gl_pathc, sizeof(char *));
+	if (dup_cache == NULL) {
+		rc = -ENOMEM;
+		fprintf(stderr,
+			"error: %s: allocating '%s' dup_cache[%zd]: %s\n",
+			opname, pattern, paths.gl_pathc, strerror(-rc));
+		goto out_param;
+	}
+
+	for (i = 0; i < paths.gl_pathc; i++) {
+		char *param_name = NULL, *tmp;
+		char pathname[PATH_MAX];
+		struct stat st;
+		int rc2, j;
+
+		if (stat(paths.gl_pathv[i], &st) == -1) {
+			fprintf(stderr, "error: %s: stat '%s': %s\n",
+				opname, paths.gl_pathv[i], strerror(errno));
+			if (rc == 0)
+				rc = -errno;
+			continue;
+		}
+
+		if (popt->po_only_dir && !S_ISDIR(st.st_mode))
+			continue;
+
+		param_name = display_name(paths.gl_pathv[i], &st, popt);
+		if (param_name == NULL) {
+			fprintf(stderr,
+				"error: %s: generating name for '%s': %s\n",
+				opname, paths.gl_pathv[i], strerror(ENOMEM));
+			if (rc == 0)
+				rc = -ENOMEM;
+			continue;
+		}
+
+		switch (mode) {
+		case GET_PARAM:
+			/* Read the contents of file to stdout */
+			//MOD have mode to print to buffer here, specified by how 
+			if (S_ISREG(st.st_mode)) {
+				rc2 = read_param(paths.gl_pathv[i], param_name,
+						 popt, ostream);
+				if (rc2 < 0 && rc == 0)
+					rc = rc2;
+			}
+			break;
+		case SET_PARAM:
+			if (S_ISREG(st.st_mode)) {
+				rc2 = write_param(paths.gl_pathv[i],
+						  param_name, popt, value);
+				if (rc2 < 0 && rc == 0)
+					rc = rc2;
+			}
+			break;
+		case LIST_PARAM:
+			/**
+			 * For the upstream client the parameter files locations
+			 * are split between under both /sys/kernel/debug/lustre
+			 * and /sys/fs/lustre. The parameter files containing
+			 * small amounts of data, less than a page in size, are
+			 * located under /sys/fs/lustre and in the case of large
+			 * parameter data files, think stats for example, are
+			 * located in the debugfs tree. Since the files are split
+			 * across two trees the directories are often duplicated
+			 * which means these directories are listed twice which
+			 * leads to duplicate output to the user. To avoid
+			 * scanning a directory twice we have to cache any
+			 * directory and check if a search has been requested
+			 * twice.
+			 */
+			for (j = 0; j < dup_count; j++) {
+				if (!strcmp(dup_cache[j], param_name))
+					break;
+			}
+			if (j != dup_count) {
+				free(param_name);
+				param_name = NULL;
+				continue;
+			}
+			dup_cache[dup_count++] = strdup(param_name);
+
+			if (popt->po_show_path)
+				// MOD print to buffer here
+				fprintf(ostream, "%s\n", param_name);
+			break;
+		}
+
+		/* Only directories are searched recursively if
+		 * requested by the user */
+		if (!S_ISDIR(st.st_mode) || !popt->po_recursive) {
+			free(param_name);
+			param_name = NULL;
+			continue;
+		}
+
+		/* Turn param_name into file path format */
+		rc2 = llapi_clean_path(popt->po_show_type, param_name);
+		if (rc2 < 0) {
+			fprintf(stderr, "error: %s: cleaning '%s': %s\n",
+				opname, param_name, strerror(-rc2));
+			free(param_name);
+			param_name = NULL;
+			if (rc == 0)
+				rc = rc2;
+			continue;
+		}
+
+		/* Use param_name to grab subdirectory tree from full path */
+		tmp = strstr(paths.gl_pathv[i], param_name);
+
+		/* cleanup paramname now that we are done with it */
+		free(param_name);
+		param_name = NULL;
+
+		/* Shouldn't happen but just in case */
+		if (tmp == NULL) {
+			if (rc == 0)
+				rc = -EINVAL;
+			continue;
+		}
+
+		rc2 = snprintf(pathname, sizeof(pathname), "%s/*", tmp);
+		if (rc2 < 0) {
+			/* snprintf() should never an error, and if it does
+			 * there isn't much point trying to use fprintf() */
+			continue;
+		}
+		if (rc2 >= sizeof(pathname)) {
+			fprintf(stderr, "error: %s: overflow processing '%s'\n",
+				opname, pathname);
+			if (rc == 0)
+				rc = -EINVAL;
+			continue;
+		}
+
+		rc2 = llapi_param_fetch(popt, pathname, value, mode, ostream);
+		if (rc2 != 0 && rc2 != -ENOENT) {
+			/* errors will be printed by llapi_param_fetch() */
+			if (rc == 0)
+				rc = rc2;
+			continue;
+		}
+	}
+
+	for (i = 0; i < dup_count; i++)
+		free(dup_cache[i]);
+	free(dup_cache);
+out_param:
+	cfs_free_param_data(&paths);
+	return rc;
+}
+
+
+/**
  * size_units is to be initialized (or zeroed) by caller.
  */
 int llapi_parse_size(const char *optarg, unsigned long long *size,
