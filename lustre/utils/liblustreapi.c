@@ -576,6 +576,13 @@ char *parameter_opname[] = {
 };
 
 int
+llapi_param_simple_fetch(char *pattern, enum parameter_operation mode,
+			 FILE* output_fp)
+{
+	return llapi_param_fetch(NULL, pattern, NULL, mode, output_fp);
+}
+
+int
 llapi_param_fetch(void *popt_v, char *pattern, char *value,
 	      enum parameter_operation mode, FILE* output_fp)
 {
@@ -586,6 +593,12 @@ llapi_param_fetch(void *popt_v, char *pattern, char *value,
 	int rc, i;
 	FILE* ostream;
 	struct param_opts *popt = popt_v;
+
+	if (!popt) {
+		popt = malloc(sizeof(*popt));
+		if (!popt)
+			return -ENOMEM;
+	}
 
 	/* list params in stream */
 	ostream = output_fp ? output_fp : stdout;
