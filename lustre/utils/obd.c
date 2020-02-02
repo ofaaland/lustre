@@ -608,7 +608,7 @@ static int shmem_running(void)
 }
 #endif
 
-extern command_t cmdlist[];
+void *obd_cmdlist;
 
 static int do_device(char *func, char *devname)
 {
@@ -644,6 +644,17 @@ int jt_obd_device(int argc, char **argv)
         return rc;
 }
 
+void set_cmdlist_pointer(void *p)
+{
+	if (!obd_cmdlist) {
+		obd_cmdlist = p;
+	} else if (obd_cmdlist != p) {
+		fprintf(stderr, "ERROR obd_cmdlist was %p want to set to %p\n",
+			obd_cmdlist, p);
+		exit(4);
+	}
+}
+
 int jt_opt_device(int argc, char **argv)
 {
         int ret;
@@ -655,7 +666,7 @@ int jt_opt_device(int argc, char **argv)
         rc = do_device("device", argv[1]);
 
         if (!rc)
-                rc = Parser_execarg(argc - 2, argv + 2, cmdlist);
+                rc = Parser_execarg(argc - 2, argv + 2, obd_cmdlist);
 
         ret = do_disconnect(argv[0], 0);
         if (!rc)
@@ -833,7 +844,7 @@ int jt_opt_net(int argc, char **argv)
         rc = jt_ptl_network (2, arg2);
 
         if (!rc)
-                rc = Parser_execarg(argc - 2, argv + 2, cmdlist);
+                rc = Parser_execarg(argc - 2, argv + 2, obd_cmdlist);
 
         return rc;
 }

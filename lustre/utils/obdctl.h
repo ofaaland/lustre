@@ -37,6 +37,8 @@
 #include <linux/lustre/lustre_barrier_user.h>
 #endif
 
+void set_cmdlist_pointer(void *p);
+
 /* ptlctl.a */
 int ptl_initialize(int argc, char **argv);
 int jt_ptl_network(int argc, char **argv);

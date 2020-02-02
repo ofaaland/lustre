@@ -628,6 +628,8 @@ int lctl_main(int argc, char **argv)
 
         setlinebuf(stdout);
 
+	set_cmdlist_pointer(cmdlist);
+
 	if (ptl_initialize(argc, argv) < 0)
 		exit(1);
         if (obd_initialize(argc, argv) < 0)

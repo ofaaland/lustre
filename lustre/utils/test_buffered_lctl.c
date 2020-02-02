@@ -11,16 +11,6 @@
 #include <lustre/lustreapi.h>
 #include <wordexp.h>
 
-
-// a hack to get around a circular dependency
-// jt_lcfg_listparam() is in luster_cfg.c
-// luster_cfg.c calls functions from obd.c
-// obd.c gets cmdlist from lctl.c
-// lctl.c can't be included in the source files because it also has a main()
-// so here is a dummy cmdlist for obd.o to link to
-command_t cmdlist[] = {{"===== metacommands =======", NULL, 0, "metacommands"}};
-
-
 // test list_param
 int main(int argc, char* argv[])
 {
