@@ -617,7 +617,6 @@ out:
  * \retval number of bytes written on success.
  * \retval -errno on error and prints error message.
  */
-//MOD have option to print to buffer here, the callers of param_display will say no
 static int
 param_display(struct param_opts *popt, char *pattern, char *value,
 	      enum parameter_operation mode, FILE* output_fp)
@@ -658,13 +657,6 @@ int jt_lcfg_listparam(int argc, char **argv)
 	struct param_opts popt;
 	char *path;
 
-	//MOD
-	// create a buffer to write to
-	char* data_buf;
-	size_t sizeloc;
-	FILE* ostream = open_memstream(&data_buf, &sizeloc);
-
-
 	memset(&popt, 0, sizeof(popt));
 	index = listparam_cmdline(argc, argv, &popt);
 	if (index < 0 || index >= argc)
@@ -675,7 +667,7 @@ int jt_lcfg_listparam(int argc, char **argv)
 
 		path = argv[i];
 
-		rc2 = param_display(&popt, path, NULL, LIST_PARAM, ostream);
+		rc2 = param_display(&popt, path, NULL, LIST_PARAM, NULL);
 		if (rc2 < 0) {
 			fprintf(stderr, "error: %s: listing '%s': %s\n",
 				jt_cmdname(argv[0]), path, strerror(-rc2));
@@ -684,11 +676,6 @@ int jt_lcfg_listparam(int argc, char **argv)
 			continue;
 		}
 	}
-	//MOD
-	fclose(ostream);
-	printf("%s", data_buf);
-	free(data_buf);
-
 	return rc;
 }
 
@@ -726,15 +713,6 @@ int jt_lcfg_getparam(int argc, char **argv)
 	struct param_opts popt;
 	char *path;
 
-	//MOD
-	// create a buffer to write to
-	char* data_buf;
-	size_t sizeloc;
-	FILE* ostream = open_memstream(&data_buf, &sizeloc);
-	
-	
-
-
 	memset(&popt, 0, sizeof(popt));
 	index = getparam_cmdline(argc, argv, &popt);
 	if (index < 0 || index >= argc)
@@ -745,21 +723,15 @@ int jt_lcfg_getparam(int argc, char **argv)
 
 		path = argv[i];
 
-		//MOD added ostream
 		rc2 = param_display(&popt, path, NULL,
 				    popt.po_only_path ? LIST_PARAM : GET_PARAM,
-				    ostream);
+				    NULL);
 		if (rc2 < 0) {
 			if (rc == 0)
 				rc = rc2;
 			continue;
 		}
 	}
-	//MOD
-	fclose(ostream);
-	printf("%s", data_buf);
-	free(data_buf);
-
 	return rc;
 }
 

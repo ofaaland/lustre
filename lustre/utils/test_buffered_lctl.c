@@ -21,11 +21,16 @@ int main(int argc, char* argv[])
 	FILE* ostream = open_memstream(&data_buf, &sizeloc);
 
 	if (argv[1][0] == 'l') {
-		rc = llapi_param_simple_fetch(argv[2], LIST_PARAM, ostream);
+		rc = llapi_param_simple_fetch(argv[2], NULL, LIST_PARAM, ostream);
 	}
 	if (argv[1][0] == 'g') {
-		rc = llapi_param_simple_fetch(argv[2], GET_PARAM, ostream);
+		rc = llapi_param_simple_fetch(argv[2], NULL, GET_PARAM, ostream);
 	}
+	if (argv[1][0] == 's') {
+		printf("TEST: setting a value of 101\n");
+		rc = llapi_param_simple_fetch(argv[2], "101", SET_PARAM, ostream);
+	}
+
 
 	fclose(ostream);
 	printf("%s", data_buf);

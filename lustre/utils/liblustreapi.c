@@ -576,22 +576,23 @@ char *parameter_opname[] = {
 };
 
 int
-llapi_param_simple_fetch(char *pattern, enum parameter_operation mode,
-			 FILE* output_fp)
+llapi_param_simple_fetch(char *pattern,  char *value,
+			 enum parameter_operation mode, FILE *output_fp)
 {
-	return llapi_param_fetch(NULL, pattern, NULL, mode, output_fp);
+	
+	return llapi_param_fetch(NULL, pattern, value, mode, output_fp);
 }
 
 int
 llapi_param_fetch(struct param_opts *popt_p, char *pattern, char *value,
-	      enum parameter_operation mode, FILE* output_fp)
+	      enum parameter_operation mode, FILE *output_fp)
 {
 	int dup_count = 0;
 	char **dup_cache;
 	glob_t paths;
 	char *opname = parameter_opname[mode];
 	int rc, i;
-	FILE* ostream;
+	FILE *ostream;
 	struct param_opts *popt = popt_p;
 
 	if (!popt) {
@@ -669,7 +670,6 @@ llapi_param_fetch(struct param_opts *popt_p, char *pattern, char *value,
 		switch (mode) {
 		case GET_PARAM:
 			/* Read the contents of file to stdout */
-			//MOD have mode to print to buffer here, specified by how 
 			if (S_ISREG(st.st_mode)) {
 				rc2 = read_param(paths.gl_pathv[i], param_name,
 						 popt, ostream);
