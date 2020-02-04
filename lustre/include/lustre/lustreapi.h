@@ -156,7 +156,7 @@ struct param_opts {
 int llapi_clean_path(unsigned int show_type, char *path);
 int llapi_param_simple_fetch(char *pattern, 
 	      enum parameter_operation mode, FILE* output_fp);
-int llapi_param_fetch(void *popt_v, char *pattern, char *value,
+int llapi_param_fetch(struct param_opts *popt_p, char *pattern, char *value,
 	      enum parameter_operation mode, FILE* output_fp);
 
 int llapi_file_open_param(const char *name, int flags, mode_t mode,

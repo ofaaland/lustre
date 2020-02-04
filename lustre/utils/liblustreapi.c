@@ -583,7 +583,7 @@ llapi_param_simple_fetch(char *pattern, enum parameter_operation mode,
 }
 
 int
-llapi_param_fetch(void *popt_v, char *pattern, char *value,
+llapi_param_fetch(struct param_opts *popt_p, char *pattern, char *value,
 	      enum parameter_operation mode, FILE* output_fp)
 {
 	int dup_count = 0;
@@ -592,12 +592,14 @@ llapi_param_fetch(void *popt_v, char *pattern, char *value,
 	char *opname = parameter_opname[mode];
 	int rc, i;
 	FILE* ostream;
-	struct param_opts *popt = popt_v;
+	struct param_opts *popt = popt_p;
 
 	if (!popt) {
-		popt = malloc(sizeof(*popt));
+		popt = calloc(1, sizeof(struct param_opts));
 		if (!popt)
 			return -ENOMEM;
+		if (mode == LIST_PARAM)
+			popt->po_show_path = 1;
 	}
 
 	/* list params in stream */
@@ -711,7 +713,6 @@ llapi_param_fetch(void *popt_v, char *pattern, char *value,
 			dup_cache[dup_count++] = strdup(param_name);
 
 			if (popt->po_show_path)
-				// MOD print to buffer here
 				fprintf(ostream, "%s\n", param_name);
 			break;
 		}
