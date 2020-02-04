@@ -66,13 +66,9 @@ endif
 lctl_LDADD :=  liblustreapi.la $(PTHREAD_LIBS) -lyaml
 lctl_DEPENDENCIES := liblustreapi.la
 
-test_buffered_lctl_SOURCES = portals.c debug.c obd.c lustre_cfg.c test_buffered_lctl.c obdctl.h
-if SERVER
-test_buffered_lctl_SOURCES += lustre_lfsck.c lsnapshot.c
-endif
+test_buffered_lctl_SOURCES = test_buffered_lctl.c
 test_buffered_lctl_LDADD := liblustreapi.la $(PTHREAD_LIBS) -lyaml
 test_buffered_lctl_DEPENDENCIES := liblustreapi.la
-
 
 lfs_SOURCES = lfs.c lfs_project.c lfs_project.h
 lfs_LDADD := liblustreapi.la -lz

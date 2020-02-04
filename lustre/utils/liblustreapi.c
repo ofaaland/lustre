@@ -426,7 +426,6 @@ static char *strnchr(const char *p, char c, size_t n)
        return (0);
 }
 
-//TODO should output_fp be renamed, be [in/out]?
 /**
  * Read the value of parameter
  *
@@ -434,8 +433,9 @@ static char *strnchr(const char *p, char c, size_t n)
  * \param[in]	  param_name	lctl parameter format of the
  *				parameter path
  * \param[in]	  popt		set/get param options
- * \param[in/out] output_fp     output written to buf and not stdout
- *                              when buf is not NULL
+ * \param[in,out] ostream       output written to ostream which 
+ *                              may be a buffer
+ *                              
  *
  * \retval 0 on success.
  * \retval -errno on error.
