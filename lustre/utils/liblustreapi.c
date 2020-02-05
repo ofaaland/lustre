@@ -576,11 +576,51 @@ char *parameter_opname[] = {
 };
 
 int
-llapi_param_simple_fetch(char *pattern,  char *value,
+llapi_param_simple_fetch(char *pattern,  char *set_value,
 			 enum parameter_operation mode, FILE *output_fp)
 {
-	
-	return llapi_param_fetch(NULL, pattern, value, mode, output_fp);
+	int rc;
+	glob_t param;
+	char *read_value;
+	size_t val_len;
+	FILE *fp = NULL;
+	int i;
+
+	val_len = 1024;
+	read_value = malloc(val_len);
+	if (read_value == NULL)
+		return -ENOMEM;
+
+	// return llapi_param_fetch(NULL, pattern, set_value, mode, output_fp);
+	rc = get_lustre_param_path(NULL, NULL, FILTER_BY_NONE, pattern, &param);
+	if (rc != 0)
+		return -ENOENT;
+
+	for(i=0; i<param.gl_pathc; i++) {
+			memset(read_value, 0, val_len);
+
+			fp = fopen(param.gl_pathv[i], "r");
+			if (fp == NULL) {
+				rc = -errno;
+				llapi_error(LLAPI_MSG_ERROR, rc, "error: opening '%s'",
+						param.gl_pathv[i]);
+				goto err;
+			}
+			if (fgets(read_value, val_len, fp) == NULL) {
+				if (!feof(fp))
+					rc = -ferror(fp);
+			}
+
+			printf("pattern %s path %s value %s\n", pattern, param.gl_pathv[i],
+				   read_value);
+	}
+
+	if (fp)
+			fclose(fp);
+err:
+	cfs_free_param_data(&param);
+
+	return rc;
 }
 
 int
