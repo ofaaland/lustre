@@ -328,6 +328,23 @@ ln lnet/ChangeLog ChangeLog-lnet
 # Set an explicit path to our Linux tree, if we can.
 cd $RPM_BUILD_DIR/lustre-%{version}
 
+echo _usrsrc
+ls -ld %{_usrsrc}
+echo _usrsrc/kernels/splat
+ls -ld %{_usrsrc}/kernels/*
+echo _usrsrc/kernels/splat/include/config
+ls -ld %{_usrsrc}/kernels/*/include/config
+echo klnk %{_usrsrc}/kernels/*/include/config
+echo tail of kernel.release
+tail %{klnk}/kernel.release
+echo _srsrc/kernels/kversion
+ls -ld %{_usrsrc}/kernels/%{kversion}
+
+echo klnk is %{klnk}
+echo kversino is %{kversion}
+echo kdir is %{kdir}
+echo kobjdir is %{kobjdir}
+
 # Store the CFLAGS and LDFLAGS that would normally be used in the UTILS_CFLAGS
 # and UTILS_LDFLAGS environment variables so that we use can them when compiling
 # the user-space code in lustre/utils and lnet/utils. As of RHEL 8.0, the
