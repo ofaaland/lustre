@@ -251,6 +251,49 @@ count will be used\.
 drop them\. Asymmetrical route is when a message from a remote peer is coming
 through a router that would not be used by this node to reach the remote peer\.
 .
+.TP
+\fBlnetctl set\fR numa_range \fIvalue\fR
+Set the NUMA range for NI selection\.  The value must be at least 0\.
+.
+.TP
+\fBlnetctl set\fR max_interfaces \fIvalue\fR
+Set the default value for max interfaces\.  The value must be greater than 16\.
+.
+.TP
+\fBlnetctl set\fR discovery \fI[0, 1]\fR
+Enable or disable peer discovery\.  0 value indicates to disable peer
+discovery\.  1 value indicates to enable peer discovery (default)\.
+.
+.TP
+\fBlnetctl set\fR retry_count \fIvalue\fR
+Set the number of retries\. A value of 0 indicates to turn off retries
+entirely.  A value >0 sets the number of retries\.
+.
+.TP
+\fBlnetctl set\fR transaction_timeout \fIvalue\fR
+Set the Message/Response timeout in units of seconds\.
+The value must be >0\.
+.
+.TP
+\fBlnetctl set\fR health_sensitivity \fIvalue\fR
+Set the sensitivity to message transmit failures\.  The value must be >=0 and <=
+1000.  A value of 0 turns off health evaluation\.  A value >0 determines how
+quickly an interface is disabled and recovers\.
+.
+.TP
+\fBlnetctl set\fR recovery_interval \fIvalue\fR
+The time in seconds between pings when recovering an interface\.
+The value must be >0\.
+.
+.TP
+\fBlnetctl set\fR router_sensitivity \fIvalue\fR
+The router sensitivity between 1 and 100 in %\.
+A value of 100 indicates router interfaces need to be fully healthy to be used\.
+A value <100 indicates router interfaces can be used even if not healthy\.
+.
+
+
+
 .SS "Import and Export YAML Configuration Files"
 LNet configuration can be represented in YAML format\. A YAML configuration
 file can be passed to the lnetctl utility via the \fBimport\fR command\. The
