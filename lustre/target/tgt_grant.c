@@ -750,9 +750,12 @@ static void tgt_grant_check(const struct lu_env *env, struct obd_export *exp,
 			granted = oa->o_grant_used;
 			skip = true;
 		} else {
-			/* client has used more grants for this request that
-			 * it owns ... */
-			CERROR("%s: cli %s claims %lu GRANT, real grant %lu\n",
+			/* Client has used more grants for this request that
+			 * it "owns". This is normal after a server restart
+			 * because the server does remember the grant it
+			 * allocated before the restart, but the client still
+			 * does.*/
+			CDEBUG(D_CACHE, "%s: cli %s claims %lu GRANT, real grant %lu\n",
 			       exp->exp_obd->obd_name,
 			       exp->exp_client_uuid.uuid,
 			       (unsigned long)oa->o_grant_used, ted->ted_grant);
