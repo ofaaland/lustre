@@ -201,7 +201,7 @@ lprocfs_exp_print_export_seq(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	obd_export_flags2str(exp, m);
 	seq_printf(m, " ]\n");
 
-	if (strstr(obd->obd_name, "-OST00")) {
+	if (obd->obd_type && strcmp(obd->obd_type->typ_name, "obdfilter")) {
         	struct filter_export_data *fed = &exp->exp_filter_data;
 
 		seq_printf(m, "ted_dirty: %ld\n",
