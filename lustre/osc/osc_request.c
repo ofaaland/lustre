@@ -964,12 +964,25 @@ void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_avail_grant = ocd->ocd_grant;
 	if (cli->cl_import->imp_state != LUSTRE_IMP_EVICTED) {
+
+		/* check for cl_avail_grant underflow */
+		if (cli->cl_reserved_grant > cli->cl_avail_grant)
+			CERROR("toss-4826 underflow: cl_reserved_grant %ld cl_avail_grant %lu\n",
+			       cli->cl_reserved_grant, cli->cl_avail_grant);
+
 		cli->cl_avail_grant -= cli->cl_reserved_grant;
-		if (OCD_HAS_FLAG(ocd, GRANT_PARAM))
+
+		if (OCD_HAS_FLAG(ocd, GRANT_PARAM)) {
+			/* check for cl_avail_grant underflow */
+			if (cli->cl_dirty_grant > cli->cl_avail_grant)
+				CERROR("toss-4826 underflow: cl_dirty_grant %lu cl_avail_grant %lu\n",
+				       cli->cl_dirty_grant, cli->cl_avail_grant);
+
 			cli->cl_avail_grant -= cli->cl_dirty_grant;
-		else
+		} else {
 			cli->cl_avail_grant -=
 					cli->cl_dirty_pages << PAGE_SHIFT;
+		}
 	}
 
 	if (OCD_HAS_FLAG(ocd, GRANT_PARAM)) {

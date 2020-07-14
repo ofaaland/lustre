@@ -1459,10 +1459,20 @@ static void __osc_unreserve_grant(struct client_obd *cli,
 	 * Thinking about a case that two extents merged by adding a new
 	 * chunk, we can save one extent tax. If extent tax is greater than
 	 * one chunk, we can save more grant by adding a new chunk */
+
+	/* check for cl_reserved_grant underflow */
+	if (reserved > cli->cl_reserved_grant)
+		CERROR("toss-4826 underflow: reserved %u cl_reserved_grant %ld unused %u\n",
+		       reserved, cli->cl_reserved_grant, unused);
+
 	cli->cl_reserved_grant -= reserved;
 	if (unused > reserved) {
 		cli->cl_avail_grant += reserved;
 		cli->cl_lost_grant  += unused - reserved;
+		/* check for cl_dirty_grant underflow */
+		if ((unused - reserved) > cli->cl_dirty_grant)
+			CERROR("toss-4826 underflow: reserved %u cl_dirty_grant %ld unused %u\n",
+			       reserved, cli->cl_dirty_grant, unused);
 		cli->cl_dirty_grant -= unused - reserved;
 	} else {
 		cli->cl_avail_grant += unused;
