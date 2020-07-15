@@ -2747,10 +2747,13 @@ int osc_queue_sync_pages(const struct lu_env *env, const struct cl_io *io,
 	ext->oe_obj = obj;
 	ext->oe_srvlock = !!(brw_flags & OBD_BRW_SRVLOCK);
 	ext->oe_ndelay = !!(brw_flags & OBD_BRW_NDELAY);
+
 	if ((brw_flags & OBD_BRW_NOCACHE) && !ext->oe_rw) {
 		/* direct io write */
 		int grants;
 		int ppc;
+
+		CERROR("Detected direct IO write\n");
 
 		ppc = 1 << (cli->cl_chunkbits - PAGE_SHIFT);
 		grants = cli->cl_grant_extent_tax;
