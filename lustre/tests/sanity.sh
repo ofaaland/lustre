@@ -19261,6 +19261,57 @@ test_300r() {
 }
 run_test 300r "test -1 striped directory"
 
+test_many_stripe_counts() {
+	local stripes=$1
+
+	local base=$DIR/$tdir
+	local stripedir=$DIR/$tdir/striped_dir.$stripes
+
+	$LFS setdirstripe -c $stripes $stripedir ||
+		error "set striped dir error"
+
+	$LFS getdirstripe $stripedir ||
+		error "getdirstripe fails"
+
+	local stripe_count
+	stripe_count=$($LFS getdirstripe $stripedir |
+		      awk '/lmv_stripe_count:/ { print $2 }')
+
+	[ $stripes -ne $stripe_count ] &&
+		error_noexit "bad stripe count $stripe_count expected $stripes"
+
+	local dupe_stripes
+	dupe_stripes=$($LFS getdirstripe $stripedir |
+		awk '/0x/ {count[$1] += 1}; END {
+			for (idx in count) {
+				if (count[idx]>1) {
+					print "index " idx " count " count[idx]
+				}
+			}
+		}')
+
+	if [[ -n "$dupe_stripes" ]] ; then
+		lfs getdirstripe $stripedir
+		error_noexit "MDT appears in lfs getdirstripe more than once"
+	fi
+
+	rm -rf $stripedir ||
+		error_noexit "unlink $stripedir fails"
+}
+
+test_300s() {
+	[ $MDS1_VERSION -lt $(version_code 2.7.55) ] &&
+		skip "Need MDS version at least 2.7.55" && return
+	[ $MDSCOUNT -lt 6 ] && skip "needs >= 2 MDTs" && return
+
+	mkdir $DIR/$tdir
+	for stripes in $(seq 2 $MDSCOUNT); do
+		test_many_stripe_counts $parent_idx $stripes
+	done
+}
+run_test 300s "test lfs mkdir -c without -i"
+
+
 prepare_remote_file() {
 	mkdir $DIR/$tdir/src_dir ||
 		error "create remote source failed"
