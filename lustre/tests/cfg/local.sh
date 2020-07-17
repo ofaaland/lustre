@@ -1,3 +1,5 @@
+MDSCOUNT=6
+
 FSNAME=${FSNAME:-lustre}
 
 # facet hosts
