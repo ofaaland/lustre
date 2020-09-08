@@ -319,7 +319,16 @@ clients in order to run
 %if 0%{?suse_version}
 %debug_package
 %endif
+
 %prep
+uname -a
+rpm -q kernel kernel-devel kernel-debuginfo kernel-debuginfo-common
+%{echo:klnk %klnk}
+%{echo:kversion %kversion}
+%{echo:kdir %kdir}
+%{echo:kobjdir %kobjdir}
+%{echo:kernel_version %kernel_version}
+
 %setup -qn lustre-%{version}
 ln lustre/ChangeLog ChangeLog-lustre
 ln lnet/ChangeLog ChangeLog-lnet
