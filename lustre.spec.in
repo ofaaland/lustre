@@ -322,12 +322,12 @@ clients in order to run
 
 %prep
 uname -a
-rpm -q kernel kernel-devel kernel-debuginfo kernel-debuginfo-common
-%{echo:klnk %klnk}
-%{echo:kversion %kversion}
-%{echo:kdir %kdir}
-%{echo:kobjdir %kobjdir}
-%{echo:kernel_version %kernel_version}
+echo packages $(rpm -q kernel kernel-devel kernel-debuginfo kernel-debuginfo-common || echo its ok)
+echo klnk %klnk
+echo kversion %kversion
+echo kdir %kdir
+echo kobjdir %kobjdir
+echo kernel_version %kernel_version
 
 %setup -qn lustre-%{version}
 ln lustre/ChangeLog ChangeLog-lustre
