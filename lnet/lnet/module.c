@@ -46,6 +46,7 @@ lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
 	int    rc = 0;
+	ENTRY;
 
 	mutex_lock(&lnet_config_mutex);
 
@@ -73,6 +74,7 @@ static int
 lnet_unconfigure (void)
 {
 	int   refcount;
+	ENTRY;
 
 	mutex_lock(&lnet_config_mutex);
 
@@ -97,6 +99,7 @@ lnet_dyn_configure_net(struct libcfs_ioctl_hdr *hdr)
 	struct lnet_ioctl_config_data *conf =
 	  (struct lnet_ioctl_config_data *)hdr;
 	int			      rc;
+	ENTRY;
 
 	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
 		return -EINVAL;
@@ -117,6 +120,7 @@ lnet_dyn_unconfigure_net(struct libcfs_ioctl_hdr *hdr)
 	struct lnet_ioctl_config_data *conf =
 	  (struct lnet_ioctl_config_data *) hdr;
 	int			      rc;
+	ENTRY;
 
 	if (conf->cfg_hdr.ioc_len < sizeof(*conf))
 		return -EINVAL;
@@ -137,6 +141,7 @@ lnet_dyn_configure_ni(struct libcfs_ioctl_hdr *hdr)
 	struct lnet_ioctl_config_ni *conf =
 	  (struct lnet_ioctl_config_ni *)hdr;
 	int			      rc;
+	ENTRY;
 
 	if (conf->lic_cfg_hdr.ioc_len < sizeof(*conf))
 		return -EINVAL;
@@ -157,6 +162,7 @@ lnet_dyn_unconfigure_ni(struct libcfs_ioctl_hdr *hdr)
 	struct lnet_ioctl_config_ni *conf =
 	  (struct lnet_ioctl_config_ni *) hdr;
 	int			      rc;
+	ENTRY;
 
 	if (conf->lic_cfg_hdr.ioc_len < sizeof(*conf))
 		return -EINVAL;
@@ -177,6 +183,7 @@ lnet_ioctl(struct notifier_block *nb,
 {
 	struct libcfs_ioctl_hdr *hdr = vdata;
 	int rc;
+	ENTRY;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CONFIGURE: {
@@ -261,6 +268,7 @@ static int __init lnet_init(void)
 static void __exit lnet_exit(void)
 {
 	int rc;
+	ENTRY;
 
 	rc = blocking_notifier_chain_unregister(&libcfs_ioctl_list,
 						&lnet_ioctl_handler);
