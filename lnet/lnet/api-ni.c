@@ -2003,6 +2003,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 
 		if (!list_empty(&ni->ni_netlist)) {
 			lnet_net_unlock(LNET_LOCK_EX);
+			mutex_unlock(&the_lnet.ln_api_mutex);
 			++i;
 			if ((i & (-i)) == i) {
 				CDEBUG(D_WARNING,
@@ -2011,6 +2012,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(cfs_time_seconds(1));
+			mutex_lock(&the_lnet.ln_api_mutex);
 			lnet_net_lock(LNET_LOCK_EX);
 			continue;
 		}

@@ -864,9 +864,10 @@ lnet_wait_known_routerstate(void)
 
 		if (all_known)
 			return;
-
+		mutex_unlock(&the_lnet.ln_api_mutex);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
+		mutex_lock(&the_lnet.ln_api_mutex);
 	}
 }
 
@@ -1292,6 +1293,8 @@ lnet_check_routers(void)
 rescan:
 	version = the_lnet.ln_routers_version;
 
+	CDEBUG(D_NET, "enter router check\n");
+
 	list_for_each(entry, &the_lnet.ln_routers) {
 		rtr = list_entry(entry, struct lnet_peer_ni,
 					lpni_rtr_list);
@@ -1317,6 +1320,8 @@ rescan:
 
 	if (the_lnet.ln_routing)
 		lnet_update_ni_status_locked();
+
+	CDEBUG(D_NET, "exit routers check\n");
 
 	lnet_net_unlock(cpt);
 
