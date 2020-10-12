@@ -592,7 +592,7 @@ int lustre_lnet_list_peer(int seq_no,
  *    err_rc - YAML strucutre of the resultant return code.
  *
  */
-int lustre_lnet_ping_nid(char *pnid, int timeout, int seq_no,
+int lustre_lnet_ping_nid(char *pnid, int timeout, int seq_no, int traceroute,
 			struct cYAML **show_rc, struct cYAML **err_rc);
 
 /* lustre_lnet_discover_nid

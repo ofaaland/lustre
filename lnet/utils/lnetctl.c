@@ -1884,23 +1884,29 @@ static int jt_ping(int argc, char **argv)
 	struct cYAML *err_rc = NULL;
 	struct cYAML *show_rc = NULL;
 	int timeout = 1000;
+	int traceroute = 0;
 	int rc = 0, opt;
 
 	const char *const short_options = "ht:";
 	const struct option long_options[] = {
 	{ .name = "help",	.has_arg = no_argument,		.val = 'h' },
 	{ .name = "timeout",	.has_arg = required_argument,	.val = 't' },
+	{ .name = "traceroute",	.has_arg = no_argument,		.val = 'r' },
 	{ .name = NULL } };
 
 	while ((opt = getopt_long(argc, argv, short_options,
 				  long_options, NULL)) != -1) {
 		switch (opt) {
+		case 'r':
+			traceroute = 1;
+			break;
 		case 't':
 			timeout = 1000 * atol(optarg);
 			break;
 		case 'h':
 			printf("ping nid[,nid,...]\n"
 			       "\t --timeout: ping timeout\n"
+			       "\t --traceroute\n"
 			       "\t --help: display this help\n");
 			return 0;
 		default:
@@ -1909,7 +1915,8 @@ static int jt_ping(int argc, char **argv)
 	}
 
 	for (; optind < argc; optind++)
-		rc = lustre_lnet_ping_nid(argv[optind], timeout, -1, &show_rc, &err_rc);
+		rc = lustre_lnet_ping_nid(argv[optind], timeout, -1, traceroute,
+					  &show_rc, &err_rc);
 
 	if (show_rc)
 		cYAML_print_tree(show_rc);

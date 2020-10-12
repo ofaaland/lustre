@@ -607,12 +607,14 @@ out:
 	return rc;
 }
 
-int lustre_lnet_ping_nid(char *ping_nids, int timeout, int seq_no,
+int lustre_lnet_ping_nid(char *ping_nids, int timeout,
+			 int seq_no, int traceroute,
 			 struct cYAML **show_rc, struct cYAML **err_rc)
 {
 	int rc;
 
-	rc = infra_ping_nid(ping_nids, "ping", timeout, IOC_LIBCFS_PING_PEER,
+	rc = infra_ping_nid(ping_nids, "ping", timeout,
+			    (traceroute ? IOC_LIBCFS_PING_PEER_TRACE : IOC_LIBCFS_PING_PEER),
 			    seq_no, show_rc, err_rc);
 	return rc;
 }
@@ -4773,15 +4775,17 @@ static int handle_yaml_show_global_settings(struct cYAML *tree,
 static int handle_yaml_ping(struct cYAML *tree, struct cYAML **show_rc,
 			    struct cYAML **err_rc)
 {
-	struct cYAML *seq_no, *nid, *timeout;
+	struct cYAML *seq_no, *nid, *timeout, *traceroute;
 
 	seq_no = cYAML_get_object_item(tree, "seq_no");
 	nid = cYAML_get_object_item(tree, "primary nid");
 	timeout = cYAML_get_object_item(tree, "timeout");
+	traceroute = cYAML_get_object_item(tree, "traceroute");
 
 	return lustre_lnet_ping_nid((nid) ? nid->cy_valuestring : NULL,
 				    (timeout) ? timeout->cy_valueint : 1000,
 				    (seq_no) ? seq_no->cy_valueint : -1,
+				    (traceroute) ? traceroute->cy_valueint : 0,
 				    show_rc, err_rc);
 }
 

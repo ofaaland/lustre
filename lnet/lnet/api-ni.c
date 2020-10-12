@@ -4009,6 +4009,8 @@ LNetCtl(unsigned int cmd, void *arg)
 		return 0;
 	}
 
+	case IOC_LIBCFS_PING_PEER_TRACE:
+		CWARN("traceroute ping not yet supported.\n");
 	case IOC_LIBCFS_PING_PEER: {
 		struct lnet_ioctl_ping_data *ping = arg;
 		struct lnet_peer *lp;
