@@ -262,6 +262,9 @@ static atomic_t lnet_dlc_seq_no = ATOMIC_INIT(0);
 static int lnet_ping(struct lnet_process_id id, signed long timeout,
 		     struct lnet_process_id __user *ids, int n_ids);
 
+static int lnet_traceroute(struct lnet_process_id id, signed long timeout,
+		     struct lnet_process_id __user *ids, int n_ids);
+
 static int lnet_discover(struct lnet_process_id id, __u32 force,
 			 struct lnet_process_id __user *ids, int n_ids);
 
@@ -4009,8 +4012,39 @@ LNetCtl(unsigned int cmd, void *arg)
 		return 0;
 	}
 
-	case IOC_LIBCFS_PING_PEER_TRACE:
-		CWARN("traceroute ping not yet supported.\n");
+	case IOC_LIBCFS_PING_PEER_TRACE: {
+		struct lnet_ioctl_ping_data *ping = arg;
+		struct lnet_peer *lp;
+		signed long timeout;
+
+		CWARN("traceroute really just ping right now. \n");
+
+		/* If timeout is negative then set default of 3 minutes */
+		if (((s32)ping->op_param) <= 0 ||
+		    ping->op_param > (DEFAULT_PEER_TIMEOUT * MSEC_PER_SEC))
+			timeout = cfs_time_seconds(DEFAULT_PEER_TIMEOUT);
+		else
+			timeout = nsecs_to_jiffies(ping->op_param * NSEC_PER_MSEC);
+
+		rc = lnet_traceroute(ping->ping_id, timeout,
+			       ping->ping_buf,
+			       ping->ping_count);
+		if (rc < 0)
+			return rc;
+
+		mutex_lock(&the_lnet.ln_api_mutex);
+		lp = lnet_find_peer(ping->ping_id.nid);
+		if (lp) {
+			ping->ping_id.nid = lp->lp_primary_nid;
+			ping->mr_info = lnet_peer_is_multi_rail(lp);
+			lnet_peer_decref_locked(lp);
+		}
+		mutex_unlock(&the_lnet.ln_api_mutex);
+
+		ping->ping_count = rc;
+		return 0;
+	}
+
 	case IOC_LIBCFS_PING_PEER: {
 		struct lnet_ioctl_ping_data *ping = arg;
 		struct lnet_peer *lp;
@@ -4182,6 +4216,133 @@ lnet_ping_event_handler(struct lnet_event *event)
 	}
 	if (event->unlinked)
 		complete(&pd->completion);
+}
+
+static int lnet_traceroute(struct lnet_process_id id, signed long timeout,
+		     struct lnet_process_id __user *ids, int n_ids)
+{
+	struct lnet_md md = { NULL };
+	struct ping_data pd = { 0 };
+	struct lnet_ping_buffer *pbuf;
+	struct lnet_process_id tmpid;
+	int i;
+	int nob;
+	int rc;
+	int rc2;
+
+	/* n_ids limit is arbitrary */
+	if (n_ids <= 0 || id.nid == LNET_NID_ANY)
+		return -EINVAL;
+
+	/*
+	 * if the user buffer has more space than the lnet_interfaces_max
+	 * then only fill it up to lnet_interfaces_max
+	 */
+	if (n_ids > lnet_interfaces_max)
+		n_ids = lnet_interfaces_max;
+
+	if (id.pid == LNET_PID_ANY)
+		id.pid = LNET_PID_LUSTRE;
+
+	pbuf = lnet_ping_buffer_alloc(n_ids, GFP_NOFS);
+	if (!pbuf)
+		return -ENOMEM;
+
+	/* initialize md content */
+	md.start     = &pbuf->pb_info;
+	md.length    = LNET_PING_INFO_SIZE(n_ids);
+	md.threshold = 2; /* GET/REPLY */
+	md.max_size  = 0;
+	md.options   = LNET_MD_TRUNCATE;
+	md.user_ptr  = &pd;
+	md.handler   = lnet_ping_event_handler;
+
+	init_completion(&pd.completion);
+
+	rc = LNetMDBind(&md, LNET_UNLINK, &pd.mdh);
+	if (rc != 0) {
+		CERROR("Can't bind MD: %d\n", rc);
+		goto fail_ping_buffer_decref;
+	}
+
+	rc = LNetGet(LNET_NID_ANY, pd.mdh, id,
+		     LNET_RESERVED_PORTAL,
+		     LNET_PROTO_PING_MATCHBITS, 0, false);
+
+	if (rc != 0) {
+		/* Don't CERROR; this could be deliberate! */
+		rc2 = LNetMDUnlink(pd.mdh);
+		LASSERT(rc2 == 0);
+
+		/* NB must wait for the UNLINK event below... */
+	}
+
+	if (wait_for_completion_timeout(&pd.completion, timeout) == 0) {
+		/* Ensure completion in finite time... */
+		LNetMDUnlink(pd.mdh);
+		wait_for_completion(&pd.completion);
+	}
+	if (!pd.replied) {
+		rc = -EIO;
+		goto fail_ping_buffer_decref;
+	}
+
+	nob = pd.rc;
+	LASSERT(nob >= 0 && nob <= LNET_PING_INFO_SIZE(n_ids));
+
+	rc = -EPROTO;		/* if I can't parse... */
+
+	if (nob < 8) {
+		CERROR("%s: ping info too short %d\n",
+		       libcfs_id2str(id), nob);
+		goto fail_ping_buffer_decref;
+	}
+
+	if (pbuf->pb_info.pi_magic == __swab32(LNET_PROTO_PING_MAGIC)) {
+		lnet_swap_pinginfo(pbuf);
+	} else if (pbuf->pb_info.pi_magic != LNET_PROTO_PING_MAGIC) {
+		CERROR("%s: Unexpected magic %08x\n",
+		       libcfs_id2str(id), pbuf->pb_info.pi_magic);
+		goto fail_ping_buffer_decref;
+	}
+
+	if ((pbuf->pb_info.pi_features & LNET_PING_FEAT_NI_STATUS) == 0) {
+		CERROR("%s: ping w/o NI status: 0x%x\n",
+		       libcfs_id2str(id), pbuf->pb_info.pi_features);
+		goto fail_ping_buffer_decref;
+	}
+
+	if (nob < LNET_PING_INFO_SIZE(0)) {
+		CERROR("%s: Short reply %d(%d min)\n",
+		       libcfs_id2str(id),
+		       nob, (int)LNET_PING_INFO_SIZE(0));
+		goto fail_ping_buffer_decref;
+	}
+
+	if (pbuf->pb_info.pi_nnis < n_ids)
+		n_ids = pbuf->pb_info.pi_nnis;
+
+	if (nob < LNET_PING_INFO_SIZE(n_ids)) {
+		CERROR("%s: Short reply %d(%d expected)\n",
+		       libcfs_id2str(id),
+		       nob, (int)LNET_PING_INFO_SIZE(n_ids));
+		goto fail_ping_buffer_decref;
+	}
+
+	rc = -EFAULT;		/* if I segv in copy_to_user()... */
+
+	memset(&tmpid, 0, sizeof(tmpid));
+	for (i = 0; i < n_ids; i++) {
+		tmpid.pid = pbuf->pb_info.pi_pid;
+		tmpid.nid = pbuf->pb_info.pi_ni[i].ns_nid;
+		if (copy_to_user(&ids[i], &tmpid, sizeof(tmpid)))
+			goto fail_ping_buffer_decref;
+	}
+	rc = pbuf->pb_info.pi_nnis;
+
+ fail_ping_buffer_decref:
+	lnet_ping_buffer_decref(pbuf);
+	return rc;
 }
 
 static int lnet_ping(struct lnet_process_id id, signed long timeout,
