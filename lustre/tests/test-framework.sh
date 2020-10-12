@@ -4803,6 +4803,10 @@ formatall() {
 
 	# We need ldiskfs here, may as well load them all
 	load_modules
+
+	# olaf
+	return
+
 	[ -n "$CLIENTONLY" ] && return
 	echo Formatting mgs, mds, osts
 	if ! combined_mgs_mds ; then
@@ -4986,6 +4990,9 @@ setupall() {
 	load_modules
 
 	init_gss
+
+	# olaf
+	return
 
 	if [ -z "$CLIENTONLY" ]; then
 		echo Setup mgs, mdt, osts
