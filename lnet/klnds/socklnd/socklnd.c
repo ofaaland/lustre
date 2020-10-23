@@ -118,9 +118,11 @@ ksocknal_create_route(__u32 ipaddr, int port)
 {
 	struct ksock_route *route;
 
+	ENTRY;
+
 	LIBCFS_ALLOC (route, sizeof (*route));
 	if (route == NULL)
-		return (NULL);
+		RETURN(NULL);
 
 	refcount_set(&route->ksnr_refcount, 1);
 	route->ksnr_peer = NULL;
@@ -135,7 +137,7 @@ ksocknal_create_route(__u32 ipaddr, int port)
 	route->ksnr_conn_count = 0;
 	route->ksnr_share_count = 0;
 
-	return route;
+	RETURN(route);
 }
 
 void
@@ -220,6 +222,7 @@ ksocknal_find_peer_locked(struct lnet_ni *ni, struct lnet_process_id id)
 {
 	struct ksock_peer_ni *peer_ni;
 
+	ENTRY;
 	hash_for_each_possible(ksocknal_data.ksnd_peers, peer_ni,
 			       ksnp_list, id.nid) {
 		LASSERT(!peer_ni->ksnp_closing);
@@ -234,9 +237,9 @@ ksocknal_find_peer_locked(struct lnet_ni *ni, struct lnet_process_id id)
 		CDEBUG(D_NET, "got peer_ni [%p] -> %s (%d)\n",
 		       peer_ni, libcfs_id2str(id),
 		       refcount_read(&peer_ni->ksnp_refcount));
-		return peer_ni;
+		RETURN(peer_ni);
 	}
-	return NULL;
+	RETURN(NULL);
 }
 
 struct ksock_peer_ni *
@@ -394,6 +397,8 @@ ksocknal_associate_route_conn_locked(struct ksock_route *route,
 					     route->ksnr_myiface);
 		if (iface)
 			iface->ksni_nroutes++;
+
+		CDEBUG(D_NET, "set ksnr_myiface %d\n", route->ksnr_myiface);
 	}
 
 	route->ksnr_connected |= (1<<type);
@@ -451,6 +456,10 @@ ksocknal_add_route_locked(struct ksock_peer_ni *peer_ni, struct ksock_route *rou
 		ksocknal_associate_route_conn_locked(route, conn);
 		/* keep going (typed routes) */
 	}
+
+	CDEBUG(D_NET, "route<->peer ksnr_myiface %d ipaddr %pI4 peer_ni %p\n",
+		route->ksnr_myiface, &route->ksnr_ipaddr,
+		peer_ni);
 }
 
 static void
@@ -500,19 +509,21 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 	struct ksock_route *route;
 	struct ksock_route *route2;
 
+	ENTRY;
+
         if (id.nid == LNET_NID_ANY ||
             id.pid == LNET_PID_ANY)
-                return (-EINVAL);
+                RETURN(-EINVAL);
 
 	/* Have a brand new peer_ni ready... */
 	peer_ni = ksocknal_create_peer(ni, id);
 	if (IS_ERR(peer_ni))
-		return PTR_ERR(peer_ni);
+		RETURN(PTR_ERR(peer_ni));
 
         route = ksocknal_create_route (ipaddr, port);
         if (route == NULL) {
                 ksocknal_peer_decref(peer_ni);
-                return (-ENOMEM);
+                RETURN(-ENOMEM);
         }
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
@@ -549,7 +560,7 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
-	return 0;
+	RETURN(0);
 }
 
 static void
@@ -905,6 +916,8 @@ ksocknal_create_routes(struct ksock_peer_ni *peer_ni, int port,
          * expecting to be dealing with small numbers of interfaces, so the
          * O(n**3)-ness here shouldn't matter */
 
+	ENTRY;
+
 	write_lock_bh(global_lock);
 
         if (net->ksnn_ninterfaces < 2) {
@@ -991,6 +1004,8 @@ ksocknal_create_routes(struct ksock_peer_ni *peer_ni, int port,
 		newroute->ksnr_myiface = best_iface->ksni_index;
 		best_iface->ksni_nroutes++;
 
+		CDEBUG(D_NET, "set ksnr_myiface %d\n", newroute->ksnr_myiface);
+
 		ksocknal_add_route_locked(peer_ni, newroute);
 		newroute = NULL;
 	}
@@ -998,6 +1013,8 @@ ksocknal_create_routes(struct ksock_peer_ni *peer_ni, int port,
 	write_unlock_bh(global_lock);
 	if (newroute != NULL)
 		ksocknal_route_decref(newroute);
+
+	EXIT;
 }
 
 int
@@ -1928,9 +1945,11 @@ ksocknal_add_interface(struct lnet_ni *ni, __u32 ipaddress, __u32 netmask)
 	struct list_head *rtmp;
 	struct ksock_route *route;
 
+	ENTRY;
+
 	if (ipaddress == 0 ||
 	    netmask == 0)
-		return -EINVAL;
+		RETURN(-EINVAL);
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
@@ -1965,6 +1984,10 @@ ksocknal_add_interface(struct lnet_ni *ni, __u32 ipaddress, __u32 netmask)
 			}
 		}
 
+		CDEBUG(D_NET, "Adding interface: ksni_index %d ipaddr %pI4 mask %pI4\n",
+			iface->ksni_index, &iface->ksni_ipaddr,
+			&iface->ksni_netmask);
+
 		rc = 0;
 		/* NB only new connections will pay attention to the new
 		 * interface!
@@ -1973,7 +1996,7 @@ ksocknal_add_interface(struct lnet_ni *ni, __u32 ipaddress, __u32 netmask)
 
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
-	return rc;
+	RETURN(rc);
 }
 
 static void
@@ -2611,6 +2634,7 @@ ksocknal_startup(struct lnet_ni *ni)
 	int i = 0;
 	int rc;
 
+	ENTRY;
         LASSERT (ni->ni_net->net_lnd == &the_ksocklnd);
 
         if (ksocknal_data.ksnd_init == SOCKNAL_INIT_NOTHING) {
@@ -2652,7 +2676,20 @@ ksocknal_startup(struct lnet_ni *ni)
 	if (rc < 0)
 		goto fail_1;
 
-	if (!ni->ni_interfaces[0]) {
+	if (!ni->ni_interfaces[1]) {
+		ksi = &net->ksnn_interfaces[0];
+		net->ksnn_ninterfaces = 1;
+
+		/* Use the second discovered interface */
+		ni->ni_dev_cpt = ifaces[1].li_cpt;
+		ksi->ksni_ipaddr = ifaces[1].li_ipaddr;
+		ksi->ksni_index = ksocknal_ip2index(ksi->ksni_ipaddr, ni);
+		ksi->ksni_netmask = ifaces[1].li_netmask;
+		strlcpy(ksi->ksni_name, ifaces[1].li_name,
+			sizeof(ksi->ksni_name));
+		LCONSOLE(D_NET, "using ipaddr %pI4 name %s ksni_index %d\n",
+			 &ksi->ksni_ipaddr, ksi->ksni_name, ksi->ksni_index);
+	} else if (!ni->ni_interfaces[0]) {
 		ksi = &net->ksnn_interfaces[0];
 
 		/* Use the first discovered interface */
@@ -2663,8 +2700,8 @@ ksocknal_startup(struct lnet_ni *ni)
 		ksi->ksni_netmask = ifaces[0].li_netmask;
 		strlcpy(ksi->ksni_name, ifaces[0].li_name,
 			sizeof(ksi->ksni_name));
-		LCONSOLE(D_NET, "ksocknal_startup using ipaddr %#x name %s\n",
-			 ksi->ksni_ipaddr, ksi->ksni_name);
+		LCONSOLE(D_NET, "ksocknal_startup using ipaddr %pI4 name %s ksni_index %d\n",
+			 &ksi->ksni_ipaddr, ksi->ksni_name, ksi->ksni_index);
 	} else {
 		/* Before Multi-Rail ksocklnd would manage
 		 * multiple interfaces with its own tcp bonding.

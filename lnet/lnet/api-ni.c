@@ -3681,6 +3681,8 @@ LNetCtl(unsigned int cmd, void *arg)
 	struct lnet_ni		 *ni;
 	int			  rc;
 
+	ENTRY;
+
 	BUILD_BUG_ON(sizeof(struct lnet_ioctl_net_config) +
 		     sizeof(struct lnet_ioctl_config_data) > LIBCFS_IOC_DATA_MAX);
 
@@ -3688,10 +3690,10 @@ LNetCtl(unsigned int cmd, void *arg)
 	case IOC_LIBCFS_GET_NI:
 		rc = LNetGetId(data->ioc_count, &id);
 		data->ioc_nid = id.nid;
-		return rc;
+		RETURN(rc);
 
 	case IOC_LIBCFS_FAIL_NID:
-		return lnet_fail_nid(data->ioc_nid, data->ioc_count);
+		RETURN( lnet_fail_nid(data->ioc_nid, data->ioc_count));
 
 	case IOC_LIBCFS_ADD_ROUTE: {
 		/* default router sensitivity to 1 */
@@ -3699,7 +3701,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < sizeof(*config))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		if (config->cfg_config_u.cfg_route.rtr_sensitivity) {
 			sensitivity =
@@ -3713,25 +3715,25 @@ LNetCtl(unsigned int cmd, void *arg)
 				    config->cfg_config_u.cfg_route.
 					rtr_priority, sensitivity);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_DEL_ROUTE:
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < sizeof(*config))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_del_route(config->cfg_net, config->cfg_nid);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 
 	case IOC_LIBCFS_GET_ROUTE:
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < sizeof(*config))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_route(config->cfg_count,
@@ -3744,7 +3746,7 @@ LNetCtl(unsigned int cmd, void *arg)
 				    &config->cfg_config_u.cfg_route.
 					rtr_sensitivity);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 
 	case IOC_LIBCFS_GET_LOCAL_NI: {
 		struct lnet_ioctl_config_ni *cfg_ni;
@@ -3757,7 +3759,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		/* get the tunables if they are available */
 		if (cfg_ni->lic_cfg_hdr.ioc_len <
 		    sizeof(*cfg_ni) + sizeof(*stats) + sizeof(*tun))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		stats = (struct lnet_ioctl_element_stats *)
 			cfg_ni->lic_bulk;
@@ -3770,20 +3772,20 @@ LNetCtl(unsigned int cmd, void *arg)
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_ni_config(cfg_ni, tun, stats, tun_size);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_LOCAL_NI_MSG_STATS: {
 		struct lnet_ioctl_element_msg_stats *msg_stats = arg;
 
 		if (msg_stats->im_hdr.ioc_len != sizeof(*msg_stats))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_ni_stats(msg_stats);
 		mutex_unlock(&the_lnet.ln_api_mutex);
 
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_NET: {
@@ -3792,12 +3794,12 @@ LNetCtl(unsigned int cmd, void *arg)
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < total)
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_net_config(config);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_LNET_STATS:
@@ -3805,35 +3807,35 @@ LNetCtl(unsigned int cmd, void *arg)
 		struct lnet_ioctl_lnet_stats *lnet_stats = arg;
 
 		if (lnet_stats->st_hdr.ioc_len < sizeof(*lnet_stats))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_counters_get(&lnet_stats->st_cntrs);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_CONFIG_RTR:
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < sizeof(*config))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		if (config->cfg_config_u.cfg_buffers.buf_enable) {
 			rc = lnet_rtrpools_enable();
 			mutex_unlock(&the_lnet.ln_api_mutex);
-			return rc;
+			RETURN(rc);
 		}
 		lnet_rtrpools_disable();
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return 0;
+		RETURN(0);
 
 	case IOC_LIBCFS_ADD_BUF:
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < sizeof(*config))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_rtrpools_adjust(config->cfg_config_u.cfg_buffers.
@@ -3843,26 +3845,26 @@ LNetCtl(unsigned int cmd, void *arg)
 					  config->cfg_config_u.cfg_buffers.
 						buf_large);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 
 	case IOC_LIBCFS_SET_NUMA_RANGE: {
 		struct lnet_ioctl_set_value *numa;
 		numa = arg;
 		if (numa->sv_hdr.ioc_len != sizeof(*numa))
-			return -EINVAL;
+			RETURN(-EINVAL);
 		lnet_net_lock(LNET_LOCK_EX);
 		lnet_numa_range = numa->sv_value;
 		lnet_net_unlock(LNET_LOCK_EX);
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_GET_NUMA_RANGE: {
 		struct lnet_ioctl_set_value *numa;
 		numa = arg;
 		if (numa->sv_hdr.ioc_len != sizeof(*numa))
-			return -EINVAL;
+			RETURN(-EINVAL);
 		numa->sv_value = lnet_numa_range;
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_GET_BUF: {
@@ -3872,33 +3874,33 @@ LNetCtl(unsigned int cmd, void *arg)
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < total)
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		pool_cfg = (struct lnet_ioctl_pool_cfg *)config->cfg_bulk;
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_rtr_pool_cfg(config->cfg_count, pool_cfg);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_LOCAL_HSTATS: {
 		struct lnet_ioctl_local_ni_hstats *stats = arg;
 
 		if (stats->hlni_hdr.ioc_len < sizeof(*stats))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_local_ni_hstats(stats);
 		mutex_unlock(&the_lnet.ln_api_mutex);
 
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_RECOVERY_QUEUE: {
 		struct lnet_ioctl_recovery_list *list = arg;
 		if (list->rlst_hdr.ioc_len < sizeof(*list))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		if (list->rlst_type == LNET_HEALTH_TYPE_LOCAL_NI)
@@ -3906,41 +3908,41 @@ LNetCtl(unsigned int cmd, void *arg)
 		else
 			rc = lnet_get_peer_ni_recovery_list(list);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_ADD_PEER_NI: {
 		struct lnet_ioctl_peer_cfg *cfg = arg;
 
 		if (cfg->prcfg_hdr.ioc_len < sizeof(*cfg))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_add_peer_ni(cfg->prcfg_prim_nid,
 				      cfg->prcfg_cfg_nid,
 				      cfg->prcfg_mr);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_DEL_PEER_NI: {
 		struct lnet_ioctl_peer_cfg *cfg = arg;
 
 		if (cfg->prcfg_hdr.ioc_len < sizeof(*cfg))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_del_peer_ni(cfg->prcfg_prim_nid,
 				      cfg->prcfg_cfg_nid);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_PEER_INFO: {
 		struct lnet_ioctl_peer *peer_info = arg;
 
 		if (peer_info->pr_hdr.ioc_len < sizeof(*peer_info))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_peer_ni_info(
@@ -3955,40 +3957,40 @@ LNetCtl(unsigned int cmd, void *arg)
 		   &peer_info->pr_lnd_u.pr_peer_credits.cr_peer_min_tx_credits,
 		   &peer_info->pr_lnd_u.pr_peer_credits.cr_peer_tx_qnob);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_PEER_NI: {
 		struct lnet_ioctl_peer_cfg *cfg = arg;
 
 		if (cfg->prcfg_hdr.ioc_len < sizeof(*cfg))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_peer_info(cfg,
 					(void __user *)cfg->prcfg_bulk);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_GET_PEER_LIST: {
 		struct lnet_ioctl_peer_cfg *cfg = arg;
 
 		if (cfg->prcfg_hdr.ioc_len < sizeof(*cfg))
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		rc = lnet_get_peer_list(&cfg->prcfg_count, &cfg->prcfg_size,
 				(struct lnet_process_id __user *)cfg->prcfg_bulk);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return rc;
+		RETURN(rc);
 	}
 
 	case IOC_LIBCFS_SET_HEALHV: {
 		struct lnet_ioctl_reset_health_cfg *cfg = arg;
 		int value;
 		if (cfg->rh_hdr.ioc_len < sizeof(*cfg))
-			return -EINVAL;
+			RETURN(-EINVAL);
 		if (cfg->rh_value < 0 ||
 		    cfg->rh_value > LNET_MAX_HEALTH_VALUE)
 			value = LNET_MAX_HEALTH_VALUE;
@@ -4005,7 +4007,7 @@ LNetCtl(unsigned int cmd, void *arg)
 			lnet_peer_ni_set_healthv(cfg->rh_nid, value,
 						  cfg->rh_all);
 		mutex_unlock(&the_lnet.ln_api_mutex);
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_NOTIFY_ROUTER: {
@@ -4016,24 +4018,24 @@ LNetCtl(unsigned int cmd, void *arg)
 		 * that deadline to the wall clock.
 		 */
 		deadline += ktime_get_seconds();
-		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags, false,
-				   deadline);
+		RETURN( lnet_notify(NULL, data->ioc_nid, data->ioc_flags, false,
+				   deadline));
 	}
 
 	case IOC_LIBCFS_LNET_DIST:
 		rc = LNetDist(data->ioc_nid, &data->ioc_nid, &data->ioc_u32[1]);
 		if (rc < 0 && rc != -EHOSTUNREACH)
-			return rc;
+			RETURN(rc);
 
 		data->ioc_u32[0] = rc;
-		return 0;
+		RETURN(0);
 
 	case IOC_LIBCFS_TESTPROTOCOMPAT:
 		the_lnet.ln_testprotocompat = data->ioc_flags;
-		return 0;
+		RETURN(0);
 
 	case IOC_LIBCFS_LNET_FAULT:
-		return lnet_fault_ctl(data->ioc_flags, data);
+		RETURN( lnet_fault_ctl(data->ioc_flags, data));
 
 	case IOC_LIBCFS_PING: {
 		signed long timeout;
@@ -4052,10 +4054,10 @@ LNetCtl(unsigned int cmd, void *arg)
 			       data->ioc_plen1 / sizeof(struct lnet_process_id));
 
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		data->ioc_count = rc;
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_PING_PEER_TRACE: {
@@ -4076,7 +4078,7 @@ LNetCtl(unsigned int cmd, void *arg)
 			       ping->ping_buf,
 			       ping->ping_count);
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		lp = lnet_find_peer(ping->ping_id.nid);
@@ -4088,7 +4090,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		mutex_unlock(&the_lnet.ln_api_mutex);
 
 		ping->ping_count = rc;
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_PING_PEER: {
@@ -4107,7 +4109,7 @@ LNetCtl(unsigned int cmd, void *arg)
 			       ping->ping_buf,
 			       ping->ping_count);
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		lp = lnet_find_peer(ping->ping_id.nid);
@@ -4119,7 +4121,7 @@ LNetCtl(unsigned int cmd, void *arg)
 		mutex_unlock(&the_lnet.ln_api_mutex);
 
 		ping->ping_count = rc;
-		return 0;
+		RETURN(0);
 	}
 
 	case IOC_LIBCFS_DISCOVER: {
@@ -4130,7 +4132,7 @@ LNetCtl(unsigned int cmd, void *arg)
 				   discover->ping_buf,
 				   discover->ping_count);
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		mutex_lock(&the_lnet.ln_api_mutex);
 		lp = lnet_find_peer(discover->ping_id.nid);
@@ -4142,13 +4144,13 @@ LNetCtl(unsigned int cmd, void *arg)
 		mutex_unlock(&the_lnet.ln_api_mutex);
 
 		discover->ping_count = rc;
-		return 0;
+		RETURN(0);
 	}
 
 	default:
 		ni = lnet_net2ni_addref(data->ioc_net);
 		if (ni == NULL)
-			return -EINVAL;
+			RETURN(-EINVAL);
 
 		if (ni->ni_net->net_lnd->lnd_ctl == NULL)
 			rc = -EINVAL;
@@ -4156,7 +4158,7 @@ LNetCtl(unsigned int cmd, void *arg)
 			rc = ni->ni_net->net_lnd->lnd_ctl(ni, cmd, arg);
 
 		lnet_ni_decref(ni);
-		return rc;
+		RETURN(rc);
 	}
 	/* not reached */
 }
@@ -4403,9 +4405,11 @@ static int lnet_ping(struct lnet_process_id id, signed long timeout,
 	int rc;
 	int rc2;
 
+	ENTRY;
+
 	/* n_ids limit is arbitrary */
 	if (n_ids <= 0 || id.nid == LNET_NID_ANY)
-		return -EINVAL;
+		RETURN(-EINVAL);
 
 	/*
 	 * if the user buffer has more space than the lnet_interfaces_max
@@ -4419,7 +4423,7 @@ static int lnet_ping(struct lnet_process_id id, signed long timeout,
 
 	pbuf = lnet_ping_buffer_alloc(n_ids, GFP_NOFS);
 	if (!pbuf)
-		return -ENOMEM;
+		RETURN(-ENOMEM);
 
 	/* initialize md content */
 	md.start     = &pbuf->pb_info;
@@ -4515,7 +4519,7 @@ static int lnet_ping(struct lnet_process_id id, signed long timeout,
 
  fail_ping_buffer_decref:
 	lnet_ping_buffer_decref(pbuf);
-	return rc;
+	RETURN(rc);
 }
 
 static int

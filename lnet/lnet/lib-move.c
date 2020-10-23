@@ -732,15 +732,22 @@ lnet_ni_send(struct lnet_ni *ni, struct lnet_msg *msg)
 	void *priv = msg->msg_private;
 	int rc;
 
+	ENTRY;
+
 	LASSERT(!in_interrupt());
 	LASSERT(ni->ni_nid == LNET_NID_LO_0 ||
 		(msg->msg_txcredit && msg->msg_peertxcredit));
 
+	CDEBUG(D_NET, "calling LND %d for msg %p\n",
+	       ni->ni_net->net_lnd->lnd_type,  msg);
 	rc = (ni->ni_net->net_lnd->lnd_send)(ni, priv, msg);
+	CDEBUG(D_NET, "returned from LND %d for msg %p\n",
+	       ni->ni_net->net_lnd->lnd_type,  msg);
 	if (rc < 0) {
 		msg->msg_no_resend = true;
 		lnet_finalize(msg, rc);
 	}
+	EXIT;
 }
 
 static int
@@ -2677,6 +2684,8 @@ lnet_select_pathway(lnet_nid_t src_nid, lnet_nid_t dst_nid,
 	bool final_hop;
 	bool mr_forwarding_allowed;
 
+	ENTRY;
+
 	memset(&send_data, 0, sizeof(send_data));
 
 	/*
@@ -2706,7 +2715,7 @@ again:
 	if (dst_nid == LNET_NID_LO_0) {
 		rc = lnet_handle_lo_send(&send_data);
 		lnet_net_unlock(cpt);
-		return rc;
+		RETURN(rc);
 	}
 
 	/*
@@ -2717,7 +2726,7 @@ again:
 	lpni = lnet_nid2peerni_locked(dst_nid, LNET_NID_ANY, cpt);
 	if (IS_ERR(lpni)) {
 		lnet_net_unlock(cpt);
-		return PTR_ERR(lpni);
+		RETURN(PTR_ERR(lpni));
 	}
 
 	/*
@@ -2740,7 +2749,7 @@ again:
 	if (rc) {
 		lnet_peer_ni_decref_locked(lpni);
 		lnet_net_unlock(cpt);
-		return rc;
+		RETURN(rc);
 	}
 	lnet_peer_ni_decref_locked(lpni);
 
@@ -2838,7 +2847,7 @@ again:
 
 	lnet_net_unlock(cpt);
 
-	return rc;
+	RETURN(rc);
 }
 
 int
@@ -2846,6 +2855,8 @@ lnet_send(lnet_nid_t src_nid, struct lnet_msg *msg, lnet_nid_t rtr_nid)
 {
 	lnet_nid_t		dst_nid = msg->msg_target.nid;
 	int			rc;
+
+	ENTRY;
 
 	/*
 	 * NB: rtr_nid is set to LNET_NID_ANY for all current use-cases,
@@ -2869,14 +2880,14 @@ lnet_send(lnet_nid_t src_nid, struct lnet_msg *msg, lnet_nid_t rtr_nid)
 			msg->msg_health_status = LNET_MSG_STATUS_REMOTE_ERROR;
 		else
 			msg->msg_health_status = LNET_MSG_STATUS_LOCAL_ERROR;
-		return rc;
+		RETURN(rc);
 	}
 
 	if (rc == LNET_CREDIT_OK)
 		lnet_ni_send(msg->msg_txni, msg);
 
 	/* rc == LNET_CREDIT_OK or LNET_CREDIT_WAIT or LNET_DC_WAIT */
-	return 0;
+	RETURN(0);
 }
 
 enum lnet_mt_event_type {
@@ -4967,6 +4978,8 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 	int cpt;
 	int rc;
 
+	ENTRY;
+
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if (!list_empty(&the_lnet.ln_test_peers) &&	/* normally we don't */
@@ -4974,14 +4987,14 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 	{
 		CERROR("Dropping GET to %s: simulated failure\n",
 		       libcfs_id2str(target));
-		return -EIO;
+		RETURN(-EIO);
 	}
 
 	msg = lnet_msg_alloc();
 	if (!msg) {
 		CERROR("Dropping GET to %s: ENOMEM on struct lnet_msg\n",
 		       libcfs_id2str(target));
-		return -ENOMEM;
+		RETURN(-ENOMEM);
 	}
 
 	cpt = lnet_cpt_of_cookie(mdh.cookie);
@@ -4990,7 +5003,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 	if (!rspt) {
 		CERROR("Dropping GET to %s: ENOMEM on response tracker\n",
 		       libcfs_id2str(target));
-		return -ENOMEM;
+		RETURN(-ENOMEM);
 	}
 	INIT_LIST_HEAD(&rspt->rspt_on_list);
 
@@ -5011,7 +5024,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 
 		lnet_msg_free(msg);
 		lnet_rspt_free(rspt, cpt);
-		return -ENOENT;
+		RETURN(-ENOENT);
 	}
 
 	CDEBUG(D_NET, "LNetGet -> %s\n", libcfs_id2str(target));
@@ -5049,7 +5062,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 	}
 
 	/* completion will be signalled by an event */
-	return 0;
+	RETURN(0);
 }
 EXPORT_SYMBOL(LNetGet);
 

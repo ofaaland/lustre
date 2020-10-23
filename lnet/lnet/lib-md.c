@@ -407,16 +407,17 @@ LNetMDBind(const struct lnet_md *umd, enum lnet_unlink unlink,
 	int		cpt;
 	int		rc;
 
+	ENTRY;
 	LASSERT(the_lnet.ln_refcount > 0);
 
 	if ((umd->options & (LNET_MD_OP_GET | LNET_MD_OP_PUT)) != 0) {
 		CERROR("Invalid option: GET|PUT illegal on active MDs\n");
-		return -EINVAL;
+		RETURN(-EINVAL);
 	}
 
 	md = lnet_md_build(umd, unlink);
 	if (IS_ERR(md))
-		return PTR_ERR(md);
+		RETURN(PTR_ERR(md));
 
 	if (md->md_length > LNET_MTU) {
 		CERROR("Invalid length: too big transfer size %u, %d max\n",
@@ -432,11 +433,11 @@ LNetMDBind(const struct lnet_md *umd, enum lnet_unlink unlink,
 	lnet_md2handle(handle, md);
 
 	lnet_res_unlock(cpt);
-	return 0;
+	RETURN(0);
 
  out_free:
 	lnet_md_free(md);
-	return rc;
+	RETURN(rc);
 }
 EXPORT_SYMBOL(LNetMDBind);
 

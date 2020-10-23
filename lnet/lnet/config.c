@@ -1602,6 +1602,8 @@ int lnet_inet_enumerate(struct lnet_inetdev **dev_list, struct net *ns)
 			ifaces[nip].li_netmask = ntohl(ifa->ifa_mask);
 			strlcpy(ifaces[nip].li_name, ifa->ifa_label,
 				sizeof(ifaces[nip].li_name));
+			LCONSOLE(D_NET, "new iface ipaddr %pI4 name %s ksni_index %d\n",
+				&ifaces[nip].li_ipaddr, ifaces[nip].li_name, dev->ifindex);
 			nip++;
 		}
 		endfor_ifa(in_dev);

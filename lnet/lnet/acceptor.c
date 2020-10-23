@@ -153,6 +153,8 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 	int			rc;
 	int			port;
 
+	ENTRY;
+
 	BUILD_BUG_ON(sizeof(cr) > 16); /* not too big to be on the stack */
 
 	for (port = LNET_ACCEPTOR_MAX_RESERVED_PORT;
@@ -161,12 +163,20 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 		/* Iterate through reserved ports. */
 		struct sockaddr_in paddr = {.sin_family = AF_INET};
 
+		LCONSOLE(D_NET, "lnet_connect: peer_nid %#lx peer_ip %pI4 port %d\n",
+			 (long unsigned int)peer_nid, &peer_ip, port);
+
 		paddr.sin_addr.s_addr = htonl(peer_ip);
 		paddr.sin_port = htons(peer_port);
 		sock = lnet_sock_connect(interface, port,
 					 (struct sockaddr *)&paddr, ns);
+
 		if (IS_ERR(sock)) {
 			rc = PTR_ERR(sock);
+
+			LCONSOLE(D_NET, "lnet_sock_connect: port %d rc %d\n",
+				  port, rc);
+
 			if (rc == -EADDRINUSE || rc == -EADDRNOTAVAIL)
 				continue;
 			goto failed;
@@ -191,7 +201,7 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 		if (rc != 0)
 			goto failed_sock;
 
-		return sock;
+		RETURN(sock);
 	}
 
 	rc = -EADDRINUSE;
@@ -201,7 +211,7 @@ failed_sock:
 	sock_release(sock);
 failed:
 	lnet_connect_console_error(rc, peer_nid, peer_ip, peer_port);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }
 EXPORT_SYMBOL(lnet_connect);
 
