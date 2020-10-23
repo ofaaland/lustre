@@ -2270,6 +2270,8 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_lnd_tunables *tun)
 	int			i;
 	struct lnet_net		*net = ni->ni_net;
 
+	LCONSOLE(D_NET, "Starting NI %s\n", libcfs_nid2str(ni->ni_nid));
+
 	mutex_lock(&the_lnet.ln_lnd_mutex);
 
 	if (tun) {
@@ -2277,7 +2279,9 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_lnd_tunables *tun)
 		ni->ni_lnd_tunables_set = true;
 	}
 
+	LCONSOLE(D_NET, "NI before lnd_startup %s\n", libcfs_nid2str(ni->ni_nid));
 	rc = (net->net_lnd->lnd_startup)(ni);
+	LCONSOLE(D_NET, "NI after lnd_startup %s\n", libcfs_nid2str(ni->ni_nid));
 
 	mutex_unlock(&the_lnet.ln_lnd_mutex);
 
@@ -2300,6 +2304,8 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_lnd_tunables *tun)
 		ni->ni_net->net_tunables.lct_peer_rtr_credits = 0;
 		ni->ni_net->net_tunables.lct_max_tx_credits = 0;
 		ni->ni_net->net_tunables.lct_peer_timeout = 0;
+		CDEBUG(D_LNI, "Added looback LNI %s\n",
+			libcfs_nid2str(ni->ni_nid));
 		return 0;
 	}
 
@@ -2339,6 +2345,30 @@ failed0:
 	return rc;
 }
 
+static void
+lnet_dump_nids_locked(char *msg)
+{
+	struct lnet_ni		*ni;
+	struct lnet_net		*net;
+
+	LCONSOLE(D_NET, "Dumping NIs: %s\n", msg);
+	list_for_each_entry(net, &the_lnet.ln_nets, net_list) {
+		list_for_each_entry(ni, &net->net_ni_list, ni_netlist) {
+			LCONSOLE(D_NET, "NI %s\n", libcfs_nid2str(ni->ni_nid));
+		}
+	}
+}
+
+static void
+lnet_dump_nids(char *msg)
+{
+	int cpt;
+
+	cpt = lnet_net_lock_current();
+	lnet_dump_nids_locked(msg);
+	lnet_net_unlock(cpt);
+}
+
 static int
 lnet_startup_lndnet(struct lnet_net *net, struct lnet_lnd_tunables *tun)
 {
@@ -2355,6 +2385,12 @@ lnet_startup_lndnet(struct lnet_net *net, struct lnet_lnd_tunables *tun)
 		net->net_tunables.lct_max_tx_credits;
 	int peerrtrcredits =
 		net->net_tunables.lct_peer_rtr_credits;
+	char net_name[64];
+
+
+	LCONSOLE(D_NET, "Starting Net: pid %#x type %#x number %#x name %s\n",
+	      current->pid, LNET_NETTYP(net->net_id), LNET_NETNUM(net->net_id),
+	      libcfs_net2str_r(net->net_id, net_name, sizeof(net_name)));
 
 	/*
 	 * make sure that this net is unique. If it isn't then
@@ -2372,6 +2408,9 @@ lnet_startup_lndnet(struct lnet_net *net, struct lnet_lnd_tunables *tun)
 		if (lnd == NULL) {
 			mutex_unlock(&the_lnet.ln_lnd_mutex);
 			rc = request_module("%s", libcfs_lnd2modname(lnd_type));
+			LCONSOLE(D_NET, "Loaded LND %s, module %s, rc=%d\n",
+				 libcfs_lnd2str(lnd_type),
+				 libcfs_lnd2modname(lnd_type), rc);
 			mutex_lock(&the_lnet.ln_lnd_mutex);
 
 			lnd = lnet_find_lnd_by_type(lnd_type);
@@ -2529,6 +2568,7 @@ lnet_startup_lndnets(struct list_head *netlist)
 	the_lnet.ln_state = LNET_STATE_RUNNING;
 	lnet_net_unlock(LNET_LOCK_EX);
 
+	lnet_dump_nids("lnet_startup_lndnets begin");
 	while (!list_empty(netlist)) {
 		net = list_entry(netlist->next, struct lnet_net, net_list);
 		list_del_init(&net->net_list);
@@ -2541,10 +2581,12 @@ lnet_startup_lndnets(struct list_head *netlist)
 		ni_count += rc;
 	}
 
+	lnet_dump_nids("lnet_startup_lndnets end success");
 	return ni_count;
 failed:
 	lnet_shutdown_lndnets();
 
+	lnet_dump_nids("lnet_startup_lndnets end fail");
 	return rc;
 }
 
@@ -2689,6 +2731,8 @@ LNetNIInit(lnet_pid_t requested_pid)
 	 * in this case.  On cleanup in case of failure only clean up
 	 * routes if it has been loaded */
 	if (!the_lnet.ln_nis_from_mod_params) {
+		LCONSOLE(D_NET, "loading from mod params networks: %s ip2nets: %s\n",
+		    networks, ip2nets);
 		rc = lnet_parse_networks(&net_head, lnet_get_networks(),
 					 use_tcp_bonding);
 		if (rc < 0)
@@ -3181,8 +3225,10 @@ static int lnet_add_net_common(struct lnet_net *net,
 
 	net_id = net->net_id;
 
+	lnet_dump_nids("lnet_add_net_common before");
 	rc = lnet_startup_lndnet(net,
 				 (tun) ? &tun->lt_tun : NULL);
+	lnet_dump_nids("lnet_add_net_common after");
 	if (rc < 0)
 		goto failed;
 

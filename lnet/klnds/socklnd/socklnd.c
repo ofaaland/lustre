@@ -2663,6 +2663,8 @@ ksocknal_startup(struct lnet_ni *ni)
 		ksi->ksni_netmask = ifaces[0].li_netmask;
 		strlcpy(ksi->ksni_name, ifaces[0].li_name,
 			sizeof(ksi->ksni_name));
+		LCONSOLE(D_NET, "ksocknal_startup using ipaddr %#x name %s\n",
+			 ksi->ksni_ipaddr, ksi->ksni_name);
 	} else {
 		/* Before Multi-Rail ksocklnd would manage
 		 * multiple interfaces with its own tcp bonding.

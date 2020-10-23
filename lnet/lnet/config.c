@@ -591,6 +591,8 @@ lnet_parse_networks(struct list_head *netlist, const char *networks,
 	__u32		net_id;
 	int		nnets = 0;
 
+	LCONSOLE(D_NET, "lnet_parse_networks: parsing %s\n", networks);
+
 	if (networks == NULL) {
 		CERROR("networks string is undefined\n");
 		return -EINVAL;
@@ -708,6 +710,8 @@ lnet_parse_networks(struct list_head *netlist, const char *networks,
 			/* Should we error out instead? */
 			continue;
 		}
+
+		LCONSOLE(D_NET, "lnet_parse_networks: handling %s\n", name);
 
 		/*
 		 * All network paramaters are now known.
