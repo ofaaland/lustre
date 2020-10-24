@@ -156,11 +156,15 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(ns, interface);
 	err = -EINVAL;
-	if (!dev || !(dev->flags & IFF_UP))
+	if (!dev || !(dev->flags & IFF_UP)) {
+		LCONSOLE(D_NET, "dev_get_by_index_rcu() failed\n");
 		goto out;
+		}
 	in_dev = __in_dev_get_rcu(dev);
-	if (!in_dev)
+	if (!in_dev) {
+		LCONSOLE(D_NET, "__in_dev_get_rcu() failed\n");
 		goto out;
+	}
 	err = -ENOENT;
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		if (err ||
@@ -175,6 +179,7 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	}
 	endfor_ifa(in_dev);
 out:
+	LCONSOLE(D_NET, "choose_ipv4_src() failed err %d\n", err);
 	rcu_read_unlock();
 	return err;
 }
@@ -219,8 +224,11 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 					     interface,
 					     ntohl(sin->sin_addr.s_addr),
 					     ns);
-			if (rc)
+			if (rc) {
+				LCONSOLE(D_NET, "choose_ipv4_src() failed rc %d\n", rc);
 				goto failed;
+			}
+
 			locaddr.sin_addr.s_addr = htonl(ip);
 		}
 
@@ -353,12 +361,16 @@ lnet_sock_connect(int interface, int local_port,
 	int rc;
 
 	sock = lnet_sock_create(interface, peeraddr, local_port, ns);
-	if (IS_ERR(sock))
+	if (IS_ERR(sock)) {
+		LCONSOLE(D_NET, "lnet_sock_create failed\n");
 		return sock;
+	}
 
 	rc = kernel_connect(sock, peeraddr, sizeof(struct sockaddr_in), 0);
-	if (rc == 0)
+	if (rc == 0) {
+		LCONSOLE(D_NET, "kernel_connect failed\n");
 		return sock;
+	}
 
 	/* EADDRNOTAVAIL probably means we're already connected to the same
 	 * peer/port on the same local port on a differently typed

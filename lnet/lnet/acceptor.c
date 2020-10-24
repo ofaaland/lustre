@@ -161,12 +161,20 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 		/* Iterate through reserved ports. */
 		struct sockaddr_in paddr = {.sin_family = AF_INET};
 
+		LCONSOLE(D_NET, "lnet_connect: peer_nid %#lx peer_ip %#x port %d\n",
+			 (long unsigned int)peer_nid, peer_ip, port);
+
 		paddr.sin_addr.s_addr = htonl(peer_ip);
 		paddr.sin_port = htons(peer_port);
 		sock = lnet_sock_connect(interface, port,
 					 (struct sockaddr *)&paddr, ns);
+
 		if (IS_ERR(sock)) {
 			rc = PTR_ERR(sock);
+
+			LCONSOLE(D_NET, "lnet_sock_connect: port %d rc %d\n",
+				  port, rc);
+
 			if (rc == -EADDRINUSE || rc == -EADDRNOTAVAIL)
 				continue;
 			goto failed;
