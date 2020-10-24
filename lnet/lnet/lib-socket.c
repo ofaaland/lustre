@@ -157,7 +157,8 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	dev = dev_get_by_index_rcu(ns, interface);
 	err = -EINVAL;
 	if (!dev || !(dev->flags & IFF_UP)) {
-		LCONSOLE(D_NET, "dev_get_by_index_rcu() failed\n");
+		LCONSOLE(D_NET, "dev_get_by_index_rcu() failed interface %d\n",
+			 interface);
 		goto out;
 		}
 	in_dev = __in_dev_get_rcu(dev);
@@ -224,8 +225,12 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 					     interface,
 					     ntohl(sin->sin_addr.s_addr),
 					     ns);
+			if (rc == -EINVAL)
+				rc = choose_ipv4_src(&ip,
+						     1,
+						     ntohl(sin->sin_addr.s_addr),
+						     ns);
 			if (rc) {
-				LCONSOLE(D_NET, "choose_ipv4_src() failed rc %d\n", rc);
 				goto failed;
 			}
 
