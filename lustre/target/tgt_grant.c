@@ -829,10 +829,10 @@ static void tgt_grant_check(const struct lu_env *env, struct obd_export *exp,
 	}
 
 	/* record in o_grant_used the actual space reserved for the I/O, will be
-	 * used later in tgt_grant_commmit() */
+	 * used later in tgt_grant_commit() */
 	oa->o_grant_used = granted + ungranted;
 
-	/* record space used for the I/O, will be used in tgt_grant_commmit() */
+	/* record space used for the I/O, will be used in tgt_grant_commit() */
 	/* Now substract what the clients has used already.  We don't subtract
 	 * this from the tot_granted yet, so that other client's can't grab
 	 * that space before we have actually allocated our blocks. That
@@ -844,8 +844,10 @@ static void tgt_grant_check(const struct lu_env *env, struct obd_export *exp,
 
 	CDEBUG(D_CACHE,
 	       "%s: cli %s/%p granted: %lu ungranted: %lu grant: %lu dirty: %lu"
-	       "\n", obd->obd_name, exp->exp_client_uuid.uuid, exp,
-	       granted, ungranted, ted->ted_grant, ted->ted_dirty);
+	       " recov: %d flgrant: %d\n", obd->obd_name,
+	       exp->exp_client_uuid.uuid, exp, granted, ungranted,
+	       ted->ted_grant, ted->ted_dirty, obd->obd_recovering,
+	       !!(oa->o_valid & OBD_MD_FLGRANT));
 
 	if (obd->obd_recovering || (oa->o_valid & OBD_MD_FLGRANT) == 0)
 		/* don't update dirty accounting during recovery or
@@ -929,8 +931,14 @@ static long tgt_grant_alloc(struct obd_export *exp, u64 curgrant,
 	 * has and what we think it has, don't grant very much and let the
 	 * client consume its grant first.  Either it just has lots of RPCs
 	 * in flight, or it was evicted and its grants will soon be used up. */
-	if (curgrant >= want || curgrant >= ted->ted_grant + chunk)
+	if (curgrant >= want || curgrant >= ted->ted_grant + chunk) {
+		CDEBUG(D_CACHE, "%s: client %s/%p none granted curgrant %llu"
+		       " want %llu ted_grant %lu chunk %lu\n", obd->obd_name,
+		       exp->exp_client_uuid.uuid, exp,
+		       (long long unsigned int)curgrant,
+		       (long long unsigned int)want, ted->ted_grant, chunk);
 		RETURN(0);
+	}
 
 	if (obd->obd_recovering)
 		conservative = false;
@@ -944,8 +952,16 @@ static long tgt_grant_alloc(struct obd_export *exp, u64 curgrant,
 	grant = (grant + (1 << tgd->tgd_blockbits) - 1) &
 		~((1ULL << tgd->tgd_blockbits) - 1);
 
-	if (!grant)
+	if (!grant) {
+		CDEBUG(D_CACHE, "%s: client %s/%p none granted conservative %d want %llu"
+		       " curgrant %llu left %llu grant %llu\n", obd->obd_name,
+		       exp->exp_client_uuid.uuid, exp, conservative,
+		       (long long unsigned int) want,
+		       (long long unsigned int) curgrant,
+		       (long long unsigned int) left,
+		       (long long unsigned int) grant);
 		RETURN(0);
+	}
 
 	/* Limit to grant_chunk if not reconnect/recovery */
 	if ((grant > chunk) && conservative)
