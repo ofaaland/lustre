@@ -562,6 +562,11 @@ static void tgt_grant_incoming(const struct lu_env *env, struct obd_export *exp,
 		dropped = 0;
 	}
 	tgd->tgd_tot_granted -= dropped;
+
+	/*
+	 * if o_dropped was too low because it overflowed, then ted_grant
+	 * on the server is too high (not reduced enough) after this.
+	 */
 	ted->ted_grant -= dropped;
 	ted->ted_dirty = dirty;
 
