@@ -153,6 +153,8 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 	int			rc;
 	int			port;
 
+	ENTRY;
+
 	BUILD_BUG_ON(sizeof(cr) > 16); /* not too big to be on the stack */
 
 	for (port = LNET_ACCEPTOR_MAX_RESERVED_PORT;
@@ -199,7 +201,7 @@ lnet_connect(lnet_nid_t peer_nid, int interface, __u32 peer_ip,
 		if (rc != 0)
 			goto failed_sock;
 
-		return sock;
+		RETURN(sock);
 	}
 
 	rc = -EADDRINUSE;
@@ -209,7 +211,7 @@ failed_sock:
 	sock_release(sock);
 failed:
 	lnet_connect_console_error(rc, peer_nid, peer_ip, peer_port);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }
 EXPORT_SYMBOL(lnet_connect);
 

@@ -1910,6 +1910,8 @@ ksocknal_connect(struct ksock_route *route)
         int               retry_later = 0;
         int               rc = 0;
 
+	ENTRY;
+
 	deadline = ktime_get_seconds() + ksocknal_timeout();
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
@@ -2011,7 +2013,7 @@ ksocknal_connect(struct ksock_route *route)
         }
 
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
-        return retry_later;
+        RETURN(retry_later);
 
  failed:
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
@@ -2053,7 +2055,7 @@ ksocknal_connect(struct ksock_route *route)
 
 	ksocknal_peer_failed(peer_ni);
 	ksocknal_txlist_done(peer_ni->ksnp_ni, &zombies, rc);
-	return 0;
+	RETURN(0);
 }
 
 /*
@@ -2191,6 +2193,8 @@ ksocknal_connd(void *arg)
 	wait_queue_entry_t wait;
 	int cons_retry = 0;
 
+	ENTRY;
+
 	init_waitqueue_entry(&wait, current);
 
 	spin_lock_bh(connd_lock);
@@ -2287,7 +2291,7 @@ ksocknal_connd(void *arg)
 	spin_unlock_bh(connd_lock);
 
 	ksocknal_thread_fini();
-	return 0;
+	RETURN(0);
 }
 
 static struct ksock_conn *
