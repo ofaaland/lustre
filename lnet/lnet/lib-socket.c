@@ -52,6 +52,8 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = cfs_time_seconds(timeout);
 	unsigned long then;
 
+	ENTRY;
+
 	LASSERT(nob > 0);
 	/* Caller may pass a zero timeout if she thinks the socket buffer is
 	 * empty enough to take the whole message immediately */
@@ -79,23 +81,23 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 		jiffies_left -= jiffies - then;
 
 		if (rc == nob)
-			return 0;
+			RETURN(0);
 
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		if (rc == 0) {
 			CERROR("Unexpected zero rc\n");
-			return -ECONNABORTED;
+			RETURN(-ECONNABORTED);
 		}
 
 		if (jiffies_left <= 0)
-			return -EAGAIN;
+			RETURN(-EAGAIN);
 
 		buffer = ((char *)buffer) + rc;
 		nob -= rc;
 	}
-	return 0;
+	RETURN(0);
 }
 EXPORT_SYMBOL(lnet_sock_write);
 
@@ -194,6 +196,8 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 	int		    rc;
 	int		    option;
 
+	ENTRY;
+
 #ifdef HAVE_SOCK_CREATE_KERN_USE_NET
 	rc = sock_create_kern(ns, PF_INET, SOCK_STREAM, 0, &sock);
 #else
@@ -201,7 +205,7 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 #endif
 	if (rc) {
 		CERROR("Can't create socket: %d\n", rc);
-		return ERR_PTR(rc);
+		RETURN(ERR_PTR(rc));
 	}
 
 	option = 1;
@@ -251,11 +255,11 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 			goto failed;
 		}
 	}
-	return sock;
+	RETURN(sock);
 
 failed:
 	sock_release(sock);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }
 
 int
@@ -365,16 +369,18 @@ lnet_sock_connect(int interface, int local_port,
 	struct socket *sock;
 	int rc;
 
+	ENTRY;
+
 	sock = lnet_sock_create(interface, peeraddr, local_port, ns);
 	if (IS_ERR(sock)) {
 		LCONSOLE(D_NET, "lnet_sock_create failed\n");
-		return sock;
+		RETURN(sock);
 	}
 
 	rc = kernel_connect(sock, peeraddr, sizeof(struct sockaddr_in), 0);
 	if (rc == 0) {
 		LCONSOLE(D_NET, "kernel_connect failed\n");
-		return sock;
+		RETURN(sock);
 	}
 
 	/* EADDRNOTAVAIL probably means we're already connected to the same
@@ -387,5 +393,5 @@ lnet_sock_connect(int interface, int local_port,
 		     local_port, peeraddr);
 
 	sock_release(sock);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }
