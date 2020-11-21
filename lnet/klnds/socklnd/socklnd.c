@@ -118,9 +118,11 @@ ksocknal_create_route(__u32 ipaddr, int port)
 {
 	struct ksock_route *route;
 
+	ENTRY;
+
 	LIBCFS_ALLOC (route, sizeof (*route));
 	if (route == NULL)
-		return (NULL);
+		RETURN(NULL);
 
 	refcount_set(&route->ksnr_refcount, 1);
 	route->ksnr_peer = NULL;
@@ -135,7 +137,7 @@ ksocknal_create_route(__u32 ipaddr, int port)
 	route->ksnr_conn_count = 0;
 	route->ksnr_share_count = 0;
 
-	return route;
+	RETURN(route);
 }
 
 void
@@ -500,19 +502,21 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 	struct ksock_route *route;
 	struct ksock_route *route2;
 
+	ENTRY;
+
         if (id.nid == LNET_NID_ANY ||
             id.pid == LNET_PID_ANY)
-                return (-EINVAL);
+                RETURN(-EINVAL);
 
 	/* Have a brand new peer_ni ready... */
 	peer_ni = ksocknal_create_peer(ni, id);
 	if (IS_ERR(peer_ni))
-		return PTR_ERR(peer_ni);
+		RETURN(PTR_ERR(peer_ni));
 
         route = ksocknal_create_route (ipaddr, port);
         if (route == NULL) {
                 ksocknal_peer_decref(peer_ni);
-                return (-ENOMEM);
+                RETURN(-ENOMEM);
         }
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
@@ -549,7 +553,7 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
-	return 0;
+	RETURN(0);
 }
 
 static void
