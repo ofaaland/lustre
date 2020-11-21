@@ -229,11 +229,14 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 		if (interface >= 0) {
 			struct sockaddr_in *sin = (void *)remaddr;
 			__u32 ip;
-			int ii;
 
-			for (ii=0; ii<4; ii++)
+			rc = choose_ipv4_src(&ip,
+					     interface,
+					     ntohl(sin->sin_addr.s_addr),
+					     ns);
+			if (rc == -EINVAL)
 				rc = choose_ipv4_src(&ip,
-						     ii,
+						     1,
 						     ntohl(sin->sin_addr.s_addr),
 						     ns);
 			if (rc) {
