@@ -155,6 +155,9 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	int err;
 	DECLARE_CONST_IN_IFADDR(ifa);
 
+	CDEBUG(D_NET, "checking interface %d dst_ipaddr %pI4h\n", interface,
+	       &dst_ipaddr);
+
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(ns, interface);
 	err = -EINVAL;
@@ -245,6 +248,8 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 
 		rc = kernel_bind(sock, (struct sockaddr *)&locaddr,
 				 sizeof(locaddr));
+		CDEBUG(D_NET, "kernel_bind for port %d locaddr.sin_port %d rc %d\n",
+		       local_port, locaddr.sin_port, rc);
 		if (rc == -EADDRINUSE) {
 			CDEBUG(D_NET, "Port %d already in use\n", local_port);
 			goto failed;
