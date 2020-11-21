@@ -2172,6 +2172,8 @@ ksocknal_connd_get_route_locked(signed long *timeout_p)
 	/* connd_routes can contain both pending and ordinary routes */
 	list_for_each_entry(route, &ksocknal_data.ksnd_connd_routes,
 				 ksnr_connd_list) {
+		CDEBUG(D_NET, "examining route: myifce %d ipaddr %pI4 port %d\n",
+			route->ksnr_myiface, &route->ksnr_ipaddr, route->ksnr_port);
 
 		if (route->ksnr_retry_interval == 0 ||
 		    now >= route->ksnr_timeout)
