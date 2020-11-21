@@ -173,8 +173,8 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	}
 	err = -ENOENT;
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
-		CDEBUG(D_NET, "dst_ipaddr %pI4 ifa_local %pI4 ifa_mask %pI4\n",
-			&dst_ipaddr, &ifa->ifa_local, &ifa->ifa_mask);
+		CDEBUG(D_NET, "dst_ipaddr %pI4 ifa_local %pI4 (%#x) ifa_mask %pI4\n",
+			&dst_ipaddr, &ifa->ifa_local, (unsigned int)ifa->ifa_local, &ifa->ifa_mask);
 		if (err ||
 		    ((dst_ipaddr ^ ntohl(ifa->ifa_local))
 		     & ntohl(ifa->ifa_mask)) == 0) {
