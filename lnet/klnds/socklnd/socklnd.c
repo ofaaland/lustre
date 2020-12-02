@@ -2677,17 +2677,17 @@ ksocknal_startup(struct lnet_ni *ni)
 		goto fail_1;
 
 	if (!ni->ni_interfaces[1]) {
-		ksi = &net->ksnn_interfaces[1];
+		ksi = &net->ksnn_interfaces[0];
+		net->ksnn_ninterfaces = 1;
 
 		/* Use the second discovered interface */
-		net->ksnn_ninterfaces = 1;
 		ni->ni_dev_cpt = ifaces[1].li_cpt;
 		ksi->ksni_ipaddr = ifaces[1].li_ipaddr;
 		ksi->ksni_index = ksocknal_ip2index(ksi->ksni_ipaddr, ni);
 		ksi->ksni_netmask = ifaces[1].li_netmask;
 		strlcpy(ksi->ksni_name, ifaces[1].li_name,
 			sizeof(ksi->ksni_name));
-		LCONSOLE(D_NET, "ksocknal_startup using ipaddr %pI4 name %s ksni_index %d\n",
+		LCONSOLE(D_NET, "using ipaddr %pI4 name %s ksni_index %d\n",
 			 &ksi->ksni_ipaddr, ksi->ksni_name, ksi->ksni_index);
 	} else if (!ni->ni_interfaces[0]) {
 		ksi = &net->ksnn_interfaces[0];
