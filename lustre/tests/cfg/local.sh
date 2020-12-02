@@ -1,3 +1,4 @@
+PTLDEBUG=-1
 FSNAME=${FSNAME:-lustre}
 
 # facet hosts
