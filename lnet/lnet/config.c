@@ -591,6 +591,8 @@ lnet_parse_networks(struct list_head *netlist, const char *networks,
 	__u32		net_id;
 	int		nnets = 0;
 
+	LCONSOLE(D_NET, "lnet_parse_networks: parsing %s\n", networks);
+
 	if (networks == NULL) {
 		CERROR("networks string is undefined\n");
 		return -EINVAL;
@@ -708,6 +710,8 @@ lnet_parse_networks(struct list_head *netlist, const char *networks,
 			/* Should we error out instead? */
 			continue;
 		}
+
+		LCONSOLE(D_NET, "lnet_parse_networks: handling %s\n", name);
 
 		/*
 		 * All network paramaters are now known.
@@ -1598,6 +1602,8 @@ int lnet_inet_enumerate(struct lnet_inetdev **dev_list, struct net *ns)
 			ifaces[nip].li_netmask = ntohl(ifa->ifa_mask);
 			strlcpy(ifaces[nip].li_name, ifa->ifa_label,
 				sizeof(ifaces[nip].li_name));
+			LCONSOLE(D_NET, "new iface ipaddr %pI4 name %s ksni_index %d\n",
+				&ifaces[nip].li_ipaddr, ifaces[nip].li_name, dev->ifindex);
 			nip++;
 		}
 		endfor_ifa(in_dev);

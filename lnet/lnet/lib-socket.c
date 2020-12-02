@@ -52,6 +52,8 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = cfs_time_seconds(timeout);
 	unsigned long then;
 
+	ENTRY;
+
 	LASSERT(nob > 0);
 	/* Caller may pass a zero timeout if she thinks the socket buffer is
 	 * empty enough to take the whole message immediately */
@@ -79,23 +81,23 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 		jiffies_left -= jiffies - then;
 
 		if (rc == nob)
-			return 0;
+			RETURN(0);
 
 		if (rc < 0)
-			return rc;
+			RETURN(rc);
 
 		if (rc == 0) {
 			CERROR("Unexpected zero rc\n");
-			return -ECONNABORTED;
+			RETURN(-ECONNABORTED);
 		}
 
 		if (jiffies_left <= 0)
-			return -EAGAIN;
+			RETURN(-EAGAIN);
 
 		buffer = ((char *)buffer) + rc;
 		nob -= rc;
 	}
-	return 0;
+	RETURN(0);
 }
 EXPORT_SYMBOL(lnet_sock_write);
 
@@ -153,16 +155,26 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	int err;
 	DECLARE_CONST_IN_IFADDR(ifa);
 
+	CDEBUG(D_NET, "checking interface %d dst_ipaddr %pI4h\n", interface,
+	       &dst_ipaddr);
+
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(ns, interface);
 	err = -EINVAL;
-	if (!dev || !(dev->flags & IFF_UP))
+	if (!dev || !(dev->flags & IFF_UP)) {
+		LCONSOLE(D_NET, "dev_get_by_index_rcu() failed interface %d\n",
+			 interface);
 		goto out;
+		}
 	in_dev = __in_dev_get_rcu(dev);
-	if (!in_dev)
+	if (!in_dev) {
+		LCONSOLE(D_NET, "__in_dev_get_rcu() failed\n");
 		goto out;
+	}
 	err = -ENOENT;
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
+		CDEBUG(D_NET, "dst_ipaddr %pI4 ifa_local %pI4 (%#x) ifa_mask %pI4\n",
+			&dst_ipaddr, &ifa->ifa_local, (unsigned int)ifa->ifa_local, &ifa->ifa_mask);
 		if (err ||
 		    ((dst_ipaddr ^ ntohl(ifa->ifa_local))
 		     & ntohl(ifa->ifa_mask)) == 0) {
@@ -175,6 +187,7 @@ int choose_ipv4_src(__u32 *ret, int interface, __u32 dst_ipaddr, struct net *ns)
 	}
 	endfor_ifa(in_dev);
 out:
+	LCONSOLE(D_NET, "choose_ipv4_src() failed err %d\n", err);
 	rcu_read_unlock();
 	return err;
 }
@@ -188,6 +201,8 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 	int		    rc;
 	int		    option;
 
+	ENTRY;
+
 #ifdef HAVE_SOCK_CREATE_KERN_USE_NET
 	rc = sock_create_kern(ns, PF_INET, SOCK_STREAM, 0, &sock);
 #else
@@ -195,7 +210,7 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 #endif
 	if (rc) {
 		CERROR("Can't create socket: %d\n", rc);
-		return ERR_PTR(rc);
+		RETURN(ERR_PTR(rc));
 	}
 
 	option = 1;
@@ -228,6 +243,8 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 
 		rc = kernel_bind(sock, (struct sockaddr *)&locaddr,
 				 sizeof(locaddr));
+		CDEBUG(D_NET, "kernel_bind for port %d locaddr.sin_port %d rc %d\n",
+		       local_port, locaddr.sin_port, rc);
 		if (rc == -EADDRINUSE) {
 			CDEBUG(D_NET, "Port %d already in use\n", local_port);
 			goto failed;
@@ -238,11 +255,11 @@ lnet_sock_create(int interface, struct sockaddr *remaddr,
 			goto failed;
 		}
 	}
-	return sock;
+	RETURN(sock);
 
 failed:
 	sock_release(sock);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }
 
 int
@@ -352,13 +369,19 @@ lnet_sock_connect(int interface, int local_port,
 	struct socket *sock;
 	int rc;
 
+	ENTRY;
+
 	sock = lnet_sock_create(interface, peeraddr, local_port, ns);
-	if (IS_ERR(sock))
-		return sock;
+	if (IS_ERR(sock)) {
+		LCONSOLE(D_NET, "lnet_sock_create failed\n");
+		RETURN(sock);
+	}
 
 	rc = kernel_connect(sock, peeraddr, sizeof(struct sockaddr_in), 0);
-	if (rc == 0)
-		return sock;
+	if (rc == 0) {
+		LCONSOLE(D_NET, "kernel_connect failed\n");
+		RETURN(sock);
+	}
 
 	/* EADDRNOTAVAIL probably means we're already connected to the same
 	 * peer/port on the same local port on a differently typed
@@ -370,5 +393,5 @@ lnet_sock_connect(int interface, int local_port,
 		     local_port, peeraddr);
 
 	sock_release(sock);
-	return ERR_PTR(rc);
+	RETURN(ERR_PTR(rc));
 }

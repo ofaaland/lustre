@@ -178,6 +178,8 @@ lnet_ioctl(struct notifier_block *nb,
 	struct libcfs_ioctl_hdr *hdr = vdata;
 	int rc;
 
+	ENTRY;
+
 	switch (cmd) {
 	case IOC_LIBCFS_CONFIGURE: {
 		struct libcfs_ioctl_data *data =
@@ -223,7 +225,7 @@ lnet_ioctl(struct notifier_block *nb,
 		}
 		break;
 	}
-	return notifier_from_ioctl_errno(rc);
+	RETURN(notifier_from_ioctl_errno(rc));
 }
 
 static struct notifier_block lnet_ioctl_handler = {
