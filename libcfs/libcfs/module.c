@@ -293,6 +293,9 @@ static int __proc_dobitmasks(void *data, int write,
 	int           is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
 	int           is_printk = (mask == &libcfs_printk) ? 1 : 0;
 
+	CWARN("libcfs_debug %p mask %p buffer %s\n",
+		&libcfs_debug, mask, (char *) buffer);
+
 	rc = cfs_trace_allocate_string_buffer(&tmpstr, tmpstrlen);
 	if (rc < 0)
 		return rc;
@@ -327,6 +330,9 @@ static int __proc_dobitmasks(void *data, int write,
 static int proc_dobitmasks(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	CWARN("libcfs_debug %p table->data %p buffer %s\n",
+		&libcfs_debug, table->data, (char *)buffer);
+
 	return lprocfs_call_handler(table->data, write, ppos, buffer, lenp,
 				    __proc_dobitmasks);
 }

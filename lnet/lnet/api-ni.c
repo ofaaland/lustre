@@ -2731,8 +2731,8 @@ LNetNIInit(lnet_pid_t requested_pid)
 	 * in this case.  On cleanup in case of failure only clean up
 	 * routes if it has been loaded */
 	if (!the_lnet.ln_nis_from_mod_params) {
-		LCONSOLE(D_NET, "loading from mod params networks: %s ip2nets: %s\n",
-		    networks, ip2nets);
+		LCONSOLE(D_NET, "loading from mod params libcfs_debg %#x networks: %s ip2nets: %s\n",
+		    libcfs_debug, networks, ip2nets);
 		rc = lnet_parse_networks(&net_head, lnet_get_networks(),
 					 use_tcp_bonding);
 		if (rc < 0)

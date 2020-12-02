@@ -186,6 +186,7 @@ static inline int cfs_cdebug_show(unsigned int mask, unsigned int subsystem)
 {
 	return 0;
 }
+
 #  define CDEBUG(mask, format, ...) (void)(0)
 #  define CDEBUG_LIMIT(mask, format, ...) (void)(0)
 #  warning "CDEBUG IS DISABLED. THIS SHOULD NEVER BE DONE FOR PRODUCTION!"
