@@ -859,7 +859,9 @@ int main(int argc, char *const argv[])
 		if (rc)
 			goto out_osd;
 #else
-		rc = -EINVAL;
+		rc = EINVAL;
+		fprintf(stderr, "%s: unable to mount %s: no server support\n",
+			progname, mop.mo_usource);
 		goto out_options;
 #endif
 	}
@@ -899,7 +901,7 @@ int main(int argc, char *const argv[])
 		/* flags and target get to lustre_get_sb(), but not
 		 * lustre_fill_super().  Lustre ignores the flags, but mount
 		 * does not. */
-		for (i = 0, rc = -EAGAIN; i <= mop.mo_retry && rc != 0; i++) {
+		for (i = 0, rc = EAGAIN; i <= mop.mo_retry && rc != 0; i++) {
 			rc = mount(mop.mo_source, mop.mo_target, "lustre",
 				   flags, (void *)options);
 			if (rc != 0) {
