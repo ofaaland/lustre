@@ -3,17 +3,16 @@
 #
 #    PRECONDITIONS
 #
+#    no lustre rpms installed (neither utilities nor kmod packages)
+#    no lustre modules loaded (lnet service stopped, lsmod | grep libcfs shows nothing)
+#    tree built with --with-zfs (so all utilities, libraries, and kernel modules built)
 #    runas user exists (passwd files updated roughly hourly)
-#    pools imported
-#    letting auster create the datasets should eliminate these
-#      lustre datasets already exist
-#      file system root is read/write by user
-#    utilities built (e.g. runas from runas.c)
-#    no kernel module (.ko) files in the tree that do not match installed
+#    sparse files created for pools with 'truncate -s 512M <path>'
+#      mds_HOST has file /tmp/${FSNAME}-mdt1 used to contain MDT pool
+#      ost_HOST has file /tmp/${FSNAME}-ost1 used to contain OST pool
 #
 # =====================================
 
-MGSNID="172.19.1.24@o2ib100"
 FSNAME=looze
 
 mds_HOST=slag1
@@ -27,9 +26,7 @@ OSTCOUNT=1
 FSNAME=${FSNAME:-lustre}
 FSTYPE=zfs
 
-MGSZFSDEV="mgs/mgs"
-MDSZFSDEV1="mgs/mdt1"
-OSTZFSDEV1="ost1/ost1"
+LOAD_MODULES_REMOTE=true
 
 PDSH="pdsh -S -w"
 
