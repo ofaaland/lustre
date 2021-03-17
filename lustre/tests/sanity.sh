@@ -21726,6 +21726,15 @@ test_902() {
 }
 run_test 902 "test short write doesn't hang lustre"
 
+test_999() {
+	do_facet mds1 $LCTL set_param debug=-1
+	do_facet ost1 $LCTL set_param debug=-1
+	$LCTL set_param debug=-1
+	dd if=/dev/urandom of=$DIR/$tfile bs=999 count=100
+	error "SIMULATING ERROR to result in log collection"
+}
+run_test 999 "test always fails"
+
 complete $SECONDS
 [ -f $EXT2_DEV ] && rm $EXT2_DEV || true
 check_and_cleanup_lustre
