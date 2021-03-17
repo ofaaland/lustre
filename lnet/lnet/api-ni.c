@@ -1985,7 +1985,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 	i = 2;
 	while (!list_empty(zombie_list)) {
 		int	*ref;
-		int	j;
+		int	j,l;
 
 		ni = list_entry(zombie_list->next,
 				struct lnet_ni, ni_netlist);
@@ -1993,13 +1993,18 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 		/* the ni should be in deleting state. If it's not it's
 		 * a bug */
 		LASSERT(ni->ni_state == LNET_NI_STATE_DELETING);
+		l = 0;
 		cfs_percpt_for_each(ref, j, ni->ni_refs) {
 			if (*ref == 0)
 				continue;
+			l += *ref;
 			/* still busy, add it back to zombie list */
 			list_add(&ni->ni_netlist, zombie_list);
 			break;
 		}
+
+		CDEBUG(D_NET, "zombie LNI %s has at least %d refs\n", l,
+		       libcfs_nid2str(ni->ni_nid));
 
 		if (!list_empty(&ni->ni_netlist)) {
 			/* Unlock mutex while waiting to allow other
@@ -2011,9 +2016,17 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 
 			++i;
 			if ((i & (-i)) == i) {
+				int k = 0;
+
 				CDEBUG(D_WARNING,
 				       "Waiting for zombie LNI %s\n",
 				       libcfs_nid2str(ni->ni_nid));
+
+				list_for_each_entry_safe(ni, tmp_ni, &net->net_ni_list, ni_netlist) {
+					k++;
+				}
+				CDEBUG(D_NET, "net %s has %d NIs including ni %s\n",
+				       libcfs_net2str(net->net_id), k, libcfs_nid2str(ni->ni_nid));
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(cfs_time_seconds(1));
@@ -2067,13 +2080,19 @@ lnet_shutdown_lndni(struct lnet_ni *ni)
 static void
 lnet_shutdown_lndnet(struct lnet_net *net)
 {
-	struct lnet_ni *ni;
+	struct lnet_ni *ni, *tmp_ni;
 
 	lnet_net_lock(LNET_LOCK_EX);
 
 	net->net_state = LNET_NET_STATE_DELETING;
 
 	list_del_init(&net->net_list);
+
+	CDEBUG(D_NET, "shutting down net %s\n", libcfs_net2str(net->net_id));
+	list_for_each_entry_safe(ni, tmp_ni, &net->net_ni_list, ni_netlist) {
+		CDEBUG(D_NET, "prepping shutdown of net %s ni %s\n",
+		       libcfs_net2str(net->net_id), libcfs_nid2str(net->ni_nid));
+	}
 
 	while (!list_empty(&net->net_ni_list)) {
 		ni = list_entry(net->net_ni_list.next,
@@ -2126,6 +2145,8 @@ lnet_shutdown_lndnets(void)
 		 */
 		net = list_entry(the_lnet.ln_nets.next,
 				 struct lnet_net, net_list);
+		CDEBUG(D_NET, "moving net %s to the zombie list\n",
+		       libcfs_net2str(net->net_id));
 		list_move(&net->net_list, &the_lnet.ln_net_zombie);
 	}
 
