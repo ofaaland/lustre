@@ -2,7 +2,6 @@
 # =====================================
 #
 #    PRECONDITIONS
-#
 #    no lustre rpms installed (neither utilities nor kmod packages)
 #    no lustre modules loaded (lnet service stopped, lsmod | grep libcfs shows nothing)
 #    tree built with --with-zfs (so all utilities, libraries, and kernel modules built)
@@ -11,6 +10,9 @@
 #      mds_HOST has file /tmp/${FSNAME}-mdt1 used to contain MDT pool
 #      ost_HOST has file /tmp/${FSNAME}-ost1 used to contain OST pool
 #
+#    RUN TEST
+#    (as root, from root of lustre tree (where autogen.sh and configure are)
+#    ./lustre/tests/auster -f slag -r sanity --only 0
 # =====================================
 
 FSNAME=looze
