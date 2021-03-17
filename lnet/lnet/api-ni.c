@@ -2003,7 +2003,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 			break;
 		}
 
-		CDEBUG(D_NET, "zombie LNI %s has at least %d refs\n",
+		CWARN("zombie LNI %s has at least %d refs\n",
 		       libcfs_nid2str(ni->ni_nid), l);
 
 		if (!list_empty(&ni->ni_netlist)) {
@@ -2026,7 +2026,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 				list_for_each_entry_safe(ni, tmp_ni, &net->net_ni_list, ni_netlist) {
 					k++;
 				}
-				CDEBUG(D_NET, "net %s has %d NIs including ni %s\n",
+				CWARN("net %s has %d NIs including ni %s\n",
 				       libcfs_net2str(net->net_id), k, libcfs_nid2str(ni->ni_nid));
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2089,9 +2089,9 @@ lnet_shutdown_lndnet(struct lnet_net *net)
 
 	list_del_init(&net->net_list);
 
-	CDEBUG(D_NET, "shutting down net %s\n", libcfs_net2str(net->net_id));
+	CWARN("shutting down net %s\n", libcfs_net2str(net->net_id));
 	list_for_each_entry_safe(ni, tmp_ni, &net->net_ni_list, ni_netlist) {
-		CDEBUG(D_NET, "prepping shutdown of net %s: includes ni %s\n",
+		CWARN("prepping shutdown of net %s: includes ni %s\n",
 		       libcfs_net2str(net->net_id), libcfs_nid2str(ni->ni_nid));
 	}
 
@@ -2146,7 +2146,7 @@ lnet_shutdown_lndnets(void)
 		 */
 		net = list_entry(the_lnet.ln_nets.next,
 				 struct lnet_net, net_list);
-		CDEBUG(D_NET, "moving net %s to the zombie list\n",
+		CWARN("moving net %s to the zombie list\n",
 		       libcfs_net2str(net->net_id));
 		list_move(&net->net_list, &the_lnet.ln_net_zombie);
 	}
