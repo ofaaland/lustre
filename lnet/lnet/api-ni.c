@@ -2003,8 +2003,8 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 			break;
 		}
 
-		CDEBUG(D_NET, "zombie LNI %s has at least %d refs\n", l,
-		       libcfs_nid2str(ni->ni_nid));
+		CDEBUG(D_NET, "zombie LNI %s has at least %d refs\n",
+		       libcfs_nid2str(ni->ni_nid), l);
 
 		if (!list_empty(&ni->ni_netlist)) {
 			/* Unlock mutex while waiting to allow other
@@ -2016,6 +2016,7 @@ lnet_clear_zombies_nis_locked(struct lnet_net *net)
 
 			++i;
 			if ((i & (-i)) == i) {
+				struct lnet_ni	*tmp_ni;
 				int k = 0;
 
 				CDEBUG(D_WARNING,
@@ -2090,8 +2091,8 @@ lnet_shutdown_lndnet(struct lnet_net *net)
 
 	CDEBUG(D_NET, "shutting down net %s\n", libcfs_net2str(net->net_id));
 	list_for_each_entry_safe(ni, tmp_ni, &net->net_ni_list, ni_netlist) {
-		CDEBUG(D_NET, "prepping shutdown of net %s ni %s\n",
-		       libcfs_net2str(net->net_id), libcfs_nid2str(net->ni_nid));
+		CDEBUG(D_NET, "prepping shutdown of net %s: includes ni %s\n",
+		       libcfs_net2str(net->net_id), libcfs_nid2str(ni->ni_nid));
 	}
 
 	while (!list_empty(&net->net_ni_list)) {
