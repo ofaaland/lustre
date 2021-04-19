@@ -378,12 +378,18 @@ lnet_consolidate_routes_locked(struct lnet_peer *orig_lp,
 static inline void
 lnet_check_route_inconsistency(struct lnet_route *route)
 {
-	if (!route->lr_single_hop &&
-	    (route->lr_hops == 1 || route->lr_hops == LNET_UNDEFINED_HOPS)) {
+	if (route->lr_single_hop)
+		return;
+
+	if (route->lr_hops == 1) {
 		CWARN("route %s->%s is detected to be multi-hop but hop count is set to %d\n",
 			libcfs_net2str(route->lr_net),
 			libcfs_nid2str(route->lr_gateway->lp_primary_nid),
 			(int) route->lr_hops);
+	} else if (route->lr_hops == LNET_UNDEFINED_HOPS) {
+		CDEBUG(D_NET, "route %s->%s is detected to be multi-hop but hop count is not set\n",
+			libcfs_net2str(route->lr_net),
+			libcfs_nid2str(route->lr_gateway->lp_primary_nid));
 	}
 }
 
