@@ -1492,6 +1492,7 @@ lustre_lnet_ioctl_config_ni(struct list_head *intf_list,
 		rc = l_ioctl(LNET_DEV_ID, IOC_LIBCFS_ADD_LOCAL_NI, data);
 		if (rc < 0) {
 			rc = -errno;
+			printf("lustre_lnet_ioctl_config_ni failed with rc %d\n", rc);
 			snprintf(err_str,
 				 LNET_MAX_STR_LEN,
 				 "\"cannot add network: %s\"", strerror(errno));
@@ -1691,7 +1692,7 @@ out:
 			free_intf_descr(intf_descr);
 		}
 	}
-
+	printf("lustre_lnet_config_ni err_str %s\n", err_str);
 	cYAML_build_error(rc, seq_no, ADD_CMD, "net", err_str, err_rc);
 
 	if (nids)

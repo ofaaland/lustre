@@ -1036,8 +1036,10 @@ static int jt_add_ni(int argc, char **argv)
 		cfs_expr_list_free(global_cpts);
 
 failed:
-	if (rc != LUSTRE_CFG_RC_NO_ERR)
+	if (rc != LUSTRE_CFG_RC_NO_ERR) {
+		printf("error occurred in jt_add_ni: rc %d\n", rc);
 		cYAML_print_tree2file(stderr, err_rc);
+	}
 
 	cYAML_free_tree(err_rc);
 
