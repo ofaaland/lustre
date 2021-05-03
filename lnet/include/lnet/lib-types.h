@@ -429,7 +429,7 @@ struct lnet_net {
 };
 
 struct lnet_ni {
-	/* chain on the lnet_net structure */
+	/* chain on net_ni_list */
 	struct list_head	ni_netlist;
 
 	/* chain on the recovery queue */
@@ -553,11 +553,11 @@ struct lnet_nid_list {
 struct lnet_peer_ni {
 	/* chain on lpn_peer_nis */
 	struct list_head	lpni_peer_nis;
-	/* chain on remote peer list */
+	/* chain on ln_remote_peer_ni_list */
 	struct list_head	lpni_on_remote_peer_ni_list;
 	/* chain on recovery queue */
 	struct list_head	lpni_recovery;
-	/* chain on peer hash */
+	/* chain on hash pt_hash[hash] */
 	struct list_head	lpni_hashlist;
 	/* messages blocking for tx credits */
 	struct list_head	lpni_txq;
@@ -674,7 +674,7 @@ struct lnet_peer {
 	/* messages blocking for router credits */
 	struct list_head	lp_rtrq;
 
-	/* routes on this peer */
+	/* routes this peer is the gateway for */
 	struct list_head	lp_routes;
 
 	/* reference count */
@@ -859,7 +859,7 @@ struct lnet_peer_table {
 					(lp)->lpni_net->net_tunables.lct_peer_timeout > 0)
 
 struct lnet_route {
-	struct list_head	lr_list;	/* chain on net */
+	struct list_head	lr_list;	/* chain on lrn_routes */
 	struct list_head	lr_gwlist;	/* chain on gateway */
 	struct lnet_peer	*lr_gateway;	/* router node */
 	lnet_nid_t		lr_nid;		/* NID used to add route */
