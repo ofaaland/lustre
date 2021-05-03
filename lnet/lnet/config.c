@@ -453,6 +453,10 @@ lnet_ni_alloc_common(struct lnet_net *net, char *iface)
 	/* LND will fill in the address part of the NID */
 	ni->ni_nid = LNET_MKNID(net->net_id, 0);
 
+	CWARN("Processing net %s iface %s\n",
+		libcfs_net2str(LNET_NIDNET(ni->ni_nid)),
+		iface);
+
 	/* Store net namespace in which current ni is being created */
 	if (current->nsproxy && current->nsproxy->net_ns)
 		ni->ni_net_ns = get_net(current->nsproxy->net_ns);
