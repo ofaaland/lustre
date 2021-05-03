@@ -3763,6 +3763,8 @@ LNetCtl(unsigned int cmd, void *arg)
 	BUILD_BUG_ON(sizeof(struct lnet_ioctl_net_config) +
 		     sizeof(struct lnet_ioctl_config_data) > LIBCFS_IOC_DATA_MAX);
 
+
+	CWARN("LNetCtl servicing cmd %d\n", cmd);
 	switch (cmd) {
 	case IOC_LIBCFS_GET_NI:
 		rc = LNetGetId(data->ioc_count, &id);

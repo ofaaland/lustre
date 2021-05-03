@@ -83,6 +83,7 @@ int l_ioctl(int dev_id, unsigned int opc, void *buf)
 		return fd;
 
 	rc = ioctl(fd, opc, buf);
+	printf("l_ioctl opc %x failed with rc %d\n", opc, rc);
 
 	return rc;
 }
