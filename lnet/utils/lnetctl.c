@@ -960,6 +960,7 @@ static int jt_add_ni(int argc, char **argv)
 				   long_options, NULL)) != -1) {
 		switch (opt) {
 		case 'n':
+			printf("adding net: %s\n", optarg);
 			nw_descr.nw_id = libcfs_str2net(optarg);
 			break;
 		case 'i':

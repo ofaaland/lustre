@@ -228,6 +228,7 @@ int lustre_lnet_add_intf_descr(struct list_head *list, char *intf, int len)
 		intf_descr->cpt_expr = NULL;
 	}
 
+	printf("adding interface: %s\n", intf_descr->intf_name);
 	list_add_tail(&intf_descr->intf_on_network, list);
 
 	return LUSTRE_CFG_RC_NO_ERR;
