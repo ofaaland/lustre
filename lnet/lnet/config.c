@@ -288,10 +288,8 @@ lnet_ni_free(struct lnet_ni *ni)
 	if (ni->ni_cpts != NULL)
 		cfs_expr_list_values_free(ni->ni_cpts, ni->ni_ncpts);
 
-	if (ni->ni_interface != NULL) {
-		LIBCFS_FREE(ni->ni_interface,
-			    strlen(ni->ni_interface) + 1);
-	}
+	if (ni->ni_interface != NULL)
+		LIBCFS_FREE(ni->ni_interface, LNET_MAX_STR_LEN);
 
 	/* release reference to net namespace */
 	if (ni->ni_net_ns != NULL)
@@ -376,37 +374,32 @@ lnet_net_alloc(__u32 net_id, struct list_head *net_list)
 static int
 lnet_ni_add_interface(struct lnet_ni *ni, char *iface)
 {
-	int niface = 0;
-
 	if (ni == NULL)
 		return -ENOMEM;
 
-	/* Allocate a separate piece of memory and copy
-	 * into it the string, so we don't have
-	 * a depencency on the tokens string.  This way we
-	 * can free the tokens at the end of the function.
-	 * The newly allocated ni_interface can be
-	 * freed when freeing the NI */
-	if (ni->ni_interface != NULL)
-		niface++;
-
-	if (niface >= 1) {
-		LCONSOLE_ERROR_MSG(0x115, "Too many interfaces "
-				   "for net %s\n",
-				   libcfs_net2str(LNET_NIDNET(ni->ni_nid)));
+	if (ni->ni_interface != NULL) {
+		LCONSOLE_ERROR_MSG(0x115, "%s: interface %s already set for net %s: rc = %d\n",
+				   iface, ni->ni_interface,
+				   libcfs_net2str(LNET_NIDNET(ni->ni_nid)),
+				   -EINVAL);
 		return -EINVAL;
 	}
 
-	LIBCFS_ALLOC(ni->ni_interface,
-		     strlen(iface) + 1);
+	/* Allocate a separate piece of memory for the interface.  This way the
+	 * code parsing input into tokens and adding interfaces can free the
+	 * tokens safely.  The newly allocated ni_interface can be freed when
+	 * freeing the NI
+	 */
+	LIBCFS_ALLOC(ni->ni_interface, LNET_MAX_STR_LEN);
 
 	if (ni->ni_interface == NULL) {
-		CERROR("Can't allocate net interface name\n");
+		CERROR("%s: cannot allocate net interface name: rc = %d\n",
+			iface, -ENOMEM);
 		return -ENOMEM;
 	}
 
-	strncpy(ni->ni_interface, iface,
-		strlen(iface) + 1);
+	strncpy(ni->ni_interface, iface, LNET_MAX_STR_LEN);
+	ni->ni_interface[LNET_MAX_STR_LEN - 1] = '\0';
 
 	return 0;
 }
