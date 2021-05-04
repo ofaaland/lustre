@@ -3250,6 +3250,8 @@ static int lnet_add_net_common(struct lnet_net *net,
 	__u32 net_id;
 	int rc;
 
+	CWARN("Processing net %s\n", libcfs_net2str(net->net_id));
+
 	lnet_net_lock(LNET_LOCK_EX);
 	rnet = lnet_find_rnet_locked(net->net_id);
 	lnet_net_unlock(LNET_LOCK_EX);
@@ -3422,6 +3424,8 @@ int lnet_dyn_add_ni(struct lnet_ioctl_config_ni *conf)
 		CERROR("No valid net and lnd information provided\n");
 		return -EINVAL;
 	}
+
+	CWARN("Processing net %s\n", libcfs_net2str(net_id));
 
 	net = lnet_net_alloc(net_id, NULL);
 	if (!net)
