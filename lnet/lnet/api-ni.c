@@ -3291,6 +3291,7 @@ static int lnet_add_net_common(struct lnet_net *net,
 	else
 		memset(&net->net_tunables, -1, sizeof(net->net_tunables));
 
+	/* Apparently lnet_startup_lndnet() can change net->net_id */
 	net_id = net->net_id;
 
 	rc = lnet_startup_lndnet(net,
