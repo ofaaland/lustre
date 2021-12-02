@@ -1342,6 +1342,37 @@ static ssize_t heat_period_second_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(heat_period_second);
 
+/* begin olaf */
+
+static unsigned long olaf_cache = 999;
+static ssize_t olaf_cache_show(struct kobject *kobj,
+				       struct attribute *attr,
+				       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%lu\n", olaf_cache);
+}
+
+static ssize_t olaf_cache_store(struct kobject *kobj,
+					struct attribute *attr,
+					const char *buffer,
+					size_t count)
+{
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	olaf_cache = val;
+
+	return count;
+}
+LUSTRE_RW_ATTR(olaf_cache);
+
+
+/* end olaf */
+
 static ssize_t inode_cache_show(struct kobject *kobj,
 				struct attribute *attr,
 				char *buf)
@@ -1586,6 +1617,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_heat_decay_percentage.attr,
 	&lustre_attr_heat_period_second.attr,
 	&lustre_attr_inode_cache.attr,
+	&lustre_attr_olaf_cache.attr,
 	NULL,
 };
 
