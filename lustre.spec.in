@@ -231,11 +231,11 @@ BuildRequires: kernel-rpm-macros
 BuildRequires: %kernel_module_package_buildreqs
 # need to provide a /usr/lib/${uname -r)/build dir
 BuildRequires: kernel
-%if "%{_vendor}" == "redhat"
-%if %{with kabi}
-BuildRequires: kernel-abi-whitelists
-%endif
-%endif
+# %if "%{_vendor}" == "redhat"
+# %if %{with kabi}
+# BuildRequires: kernel-abi-whitelists
+# %endif
+# %endif
 %endif
 
 %if %{with systemd}
