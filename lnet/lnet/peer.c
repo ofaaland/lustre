@@ -46,7 +46,39 @@
 /* Value indicating that recovery needs to re-check a peer immediately. */
 #define LNET_REDISCOVER_PEER	(1)
 
+unsigned int dump_found_peer=1;
+static DEFINE_SPINLOCK(dump_peer_lock);
+
 static int lnet_peer_queue_for_discovery(struct lnet_peer *lp);
+
+static void
+dump_peer(struct lnet_peer *lp)
+{
+	struct lnet_peer_net *net;
+	struct lnet_peer_ni  *ni;
+	char buf[256];
+
+	spin_lock(&dump_peer_lock);
+
+	/* bail out if lost a race to dump peer */
+	if (dump_found_peer == 0) {
+		spin_unlock(&dump_peer_lock);
+		return;
+	}
+
+	/* dump peer if we won the race */
+	CDEBUG(D_NET, "peer %p primary NID %s\n", lp, libcfs_nidstr(&lp->lp_primary_nid));
+
+	dump_found_peer = 1;
+	list_for_each_entry(net, &lp->lp_peer_nets, lpn_peer_nets) {
+		CDEBUG(D_NET, "net: %s\n", libcfs_net2str_r(net->lpn_net_id, buf, sizeof(buf)));
+		list_for_each_entry(ni, &net->lpn_peer_nis, lpni_peer_nis) {
+			CDEBUG(D_NET, "NI NID: %s\n", libcfs_nidstr(&lp->lp_primary_nid));
+		}
+	}
+
+	spin_unlock(&dump_peer_lock);
+}
 
 static void
 lnet_peer_remove_from_remote_list(struct lnet_peer_ni *lpni)
@@ -1460,6 +1492,8 @@ LNetPrimaryNID(lnet_nid_t nid)
 	}
 	lp = lpni->lpni_peer_net->lpn_peer;
 
+	dump_peer(lpni->lpni_peer_net->lpn_peer);
+
 	/* If discovery is disabled locally then we needn't bother running
 	 * discovery here because discovery will not modify whatever
 	 * primary NID is currently set for this peer. If the specified peer is
@@ -2116,8 +2150,10 @@ lnet_peerni_by_nid_locked(struct lnet_nid *nid,
 	 * If so then just return that.
 	 */
 	lpni = lnet_peer_ni_find_locked(nid);
-	if (lpni)
+	if (lpni) {
+		dump_peer(lpni->lpni_peer_net->lpn_peer);
 		return lpni;
+	}
 
 	/*
 	 * Slow path:
@@ -2162,6 +2198,7 @@ out_mutex_unlock:
 		lpni = ERR_PTR(-ESHUTDOWN);
 	}
 
+	dump_peer(lpni->lpni_peer_net->lpn_peer);
 	return lpni;
 }
 
