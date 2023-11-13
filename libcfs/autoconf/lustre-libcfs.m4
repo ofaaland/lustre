@@ -1277,212 +1277,59 @@ param_set_uint_minmax, [
 ]) # LIBCFS_PARAM_SET_UINT_MINMAX
 
 #
+# LIBCFS_TIMER_DELETE_SYNC
+#
+# Linux commit v6.1-rc1-7-g9a5a30568697
+#   timers: Get rid of del_singleshot_timer_sync()
+# Linux commit v6.1-rc1-11-g9b13df3fb64e
+#   timers: Rename del_timer_sync() to timer_delete_sync()
+#
+AC_DEFUN([LIBCFS_SRC_TIMER_DELETE_SYNC],[
+	LB2_LINUX_TEST_SRC([timer_delete_sync], [
+		#include <linux/timer.h>
+	],[
+		struct timer_list *timer = NULL;
+		(void)timer_delete_sync(timer);
+	],[])
+])
+AC_DEFUN([LIBCFS_TIMER_DELETE_SYNC],[
+	AC_MSG_CHECKING([is timer_delete_sync() available])
+	LB2_LINUX_TEST_RESULT([timer_delete_sync], [
+		AC_DEFINE(HAVE_TIMER_DELETE_SYNC, 1,
+			[timer_delete_sync() is available])
+	],[
+		AC_DEFINE(timer_delete_sync(t), del_timer_sync(t),
+			[timer_delete_sync() not is available])
+	])
+]) # LIBCFS_TIMER_DELETE_SYNC
+
+#
+# LIBCFS_TIMER_DELETE_SYNC
+#
+# Linux commit v6.1-rc1-12-gbb663f0f3c39
+#   timers: Rename del_timer() to timer_delete()
+#
+AC_DEFUN([LIBCFS_SRC_TIMER_DELETE],[
+	LB2_LINUX_TEST_SRC([timer_delete], [
+		#include <linux/timer.h>
+	],[
+		struct timer_list *timer = NULL;
+		(void)timer_delete(timer);
+	],[])
+])
+AC_DEFUN([LIBCFS_TIMER_DELETE],[
+	AC_MSG_CHECKING([is timer_delete() available])
+	LB2_LINUX_TEST_RESULT([timer_delete], [
+		AC_DEFINE(HAVE_TIMER_DELETE, 1,
+			[timer_delete() is available])
+	],[
+		AC_DEFINE(timer_delete(t), del_timer(t),
+			[timer_delete() not is available])
+	])
+]) # LIBCFS_TIMER_DELETE
+
+#
 # LIBCFS_PROG_LINUX
 #
 # LibCFS linux kernel checks
 #
-AC_DEFUN([LIBCFS_PROG_LINUX], [
-AC_MSG_NOTICE([LibCFS kernel checks
-==============================================================================])
-LIBCFS_CONFIG_PANIC_DUMPLOG
-
-# 2.6.32
-LIBCFS_STACKTRACE_OPS_HAVE_WALK_STACK
-LC_SHRINKER_WANT_SHRINK_PTR
-# 2.6.33
-LIBCFS_SYSCTL_CTLNAME
-# 2.6.36
-LIBCFS_MODULE_LOCKING
-# 2.6.38
-LIBCFS_KSTRTOUL
-# 2.6.39
-LIBCFS_DUMP_TRACE_ADDRESS
-# 2.6.40 fc15
-LC_SHRINK_CONTROL
-# 3.0
-LIBCFS_STACKTRACE_WARNING
-# 3.5
-LIBCFS_PROCESS_NAMESPACE
-LIBCFS_I_UID_READ
-# 3.8
-LIBCFS_HAVE_CRC32
-LIBCFS_D_HASH_AND_LOOKUP
-LIBCFS_ENABLE_CRC32_ACCEL
-# 3.10
-LIBCFS_ENABLE_CRC32C_ACCEL
-# 3.11
-LIBCFS_KTIME_GET_TS64
-# 3.12
-LIBCFS_PREPARE_TO_WAIT_EVENT
-LIBCFS_KERNEL_PARAM_OPS
-LIBCFS_KTIME_ADD
-LIBCFS_KTIME_AFTER
-LIBCFS_KTIME_BEFORE
-LIBCFS_KTIME_COMPARE
-LIBCFS_SHRINKER_COUNT
-# 3.15
-LIBCFS_IOV_ITER_HAS_TYPE
-# 3.16
-LIBCFS_LINUX_RHASHTABLE_H
-# 3.17
-LIBCFS_HLIST_ADD_AFTER
-LIBCFS_TIMESPEC64
-LIBCFS_KTIME_GET_NS
-LIBCFS_KTIME_GET_REAL_TS64
-LIBCFS_KTIME_GET_REAL_SECONDS
-LIBCFS_KTIME_GET_REAL_NS
-LIBCFS_KTIME_TO_TIMESPEC64
-LIBCFS_TIMESPEC64_SUB
-LIBCFS_TIMESPEC64_TO_KTIME
-# 3.19
-LIBCFS_KTIME_GET_SECONDS
-# 4.0
-LIBCFS_KTIME_MS_DELTA
-# 4.1
-LIBCFS_KERNEL_PARAM_LOCK
-# 4.2
-LIBCFS_HAVE_TOPOLOGY_SIBLING_CPUMASK
-LIBCFS_FPU_API
-# 4.4
-LIBCFS_KSTRTOBOOL_FROM_USER
-# 4.5
-LIBCFS_CRYPTO_HASH_HELPERS
-LIBCFS_EXPORT_KSET_FIND_OBJ
-# 4.6
-LIBCFS_BROKEN_HASH_64
-LIBCFS_STACKTRACE_OPS_ADDRESS_RETURN_INT
-LIBCFS_GET_USER_PAGES_6ARG
-LIBCFS_STRINGHASH
-# 4.7
-LIBCFS_RHASHTABLE_INSERT_FAST
-# 4.8
-LIBCFS_RHASHTABLE_LOOKUP
-LIBCFS_RHLTABLE
-LIBCFS_STACKTRACE_OPS
-# 4.9
-LIBCFS_GET_USER_PAGES_GUP_FLAGS
-# 4.10
-LIBCFS_HOTPLUG_STATE_MACHINE
-# 4.11
-LIBCFS_RHASHTABLE_LOOKUP_GET_INSERT_FAST
-LIBCFS_SCHED_HEADERS
-# 4.12
-LIBCFS_HAVE_WAIT_BIT_HEADER
-LIBCFS_WAIT_QUEUE_TASK_LIST_RENAME
-# 4.13
-LIBCFS_WAIT_QUEUE_ENTRY
-# 4.14
-LIBCFS_DEFINE_TIMER
-LIBCFS_NEW_KERNEL_WRITE
-LIBCFS_EXPORT_SAVE_STACK_TRACE_TSK
-# 4.15
-LIBCFS_TIMER_SETUP
-# 4.16
-LIBCFS_WAIT_VAR_EVENT
-# 4.17
-LIBCFS_CLEAR_AND_WAKE_UP_BIT
-# 4.20
-LIBCFS_HAVE_IOV_ITER_TYPE
-# 5.0
-LIBCFS_MM_TOTALRAM_PAGES_FUNC
-LIBCFS_GET_REQUEST_KEY_AUTH
-# 5.3
-LIBCFS_LOOKUP_USER_KEY
-LIBCFS_CACHE_DETAIL_WRITERS
-LIBCFS_HAVE_NR_UNSTABLE_NFS
-# 5.15
-LIBCFS_PARAM_SET_UINT_MINMAX
-]) # LIBCFS_PROG_LINUX
-
-#
-# LIBCFS_PATH_DEFAULTS
-#
-# default paths for installed files
-#
-AC_DEFUN([LIBCFS_PATH_DEFAULTS], [
-]) # LIBCFS_PATH_DEFAULTS
-
-#
-# LIBCFS_CONFIGURE
-#
-# other configure checks
-#
-AC_DEFUN([LIBCFS_CONFIGURE], [
-AC_MSG_NOTICE([LibCFS core checks
-==============================================================================])
-
-# libcfs/libcfs/util/nidstrings.c
-AC_CHECK_HEADERS([netdb.h asm/types.h endian.h])
-AC_CHECK_FUNCS([gethostbyname])
-
-# --------  Check for required packages  --------------
-
-AC_MSG_NOTICE([LibCFS required packages checks
-==============================================================================])
-
-AC_MSG_CHECKING([whether to enable readline support])
-AC_ARG_ENABLE(readline,
-	AC_HELP_STRING([--disable-readline],
-		[disable readline support]),
-	[], [enable_readline="yes"])
-AC_MSG_RESULT([$enable_readline])
-
-LIBREADLINE=""
-AS_IF([test "x$enable_readline" = xyes], [
-	AC_CHECK_LIB([readline], [readline], [
-		LIBREADLINE="-lreadline"
-		AC_DEFINE(HAVE_LIBREADLINE, 1,
-			[readline library is available])
-	])
-])
-AC_SUBST(LIBREADLINE)
-
-AC_MSG_CHECKING([whether to use libpthread for libcfs library])
-AC_ARG_ENABLE([libpthread],
-	AC_HELP_STRING([--disable-libpthread],
-		[disable libpthread]),
-	[], [enable_libpthread="yes"])
-AC_MSG_RESULT([$enable_libpthread])
-
-PTHREAD_LIBS=""
-AS_IF([test "x$enable_libpthread" = xyes], [
-	AC_CHECK_LIB([pthread], [pthread_create], [
-		PTHREAD_LIBS="-lpthread"
-		AC_DEFINE([HAVE_LIBPTHREAD], 1,
-			[use libpthread for libcfs library])
-	])
-], [
-	AC_MSG_WARN([Using libpthread for libcfs library is disabled explicitly])
-])
-AC_SUBST(PTHREAD_LIBS)
-]) # LIBCFS_CONFIGURE
-
-#
-# LIBCFS_CONDITIONALS
-#
-AC_DEFUN([LIBCFS_CONDITIONALS], [
-AM_CONDITIONAL(HAVE_CRC32, [test "x$have_crc32" = xyes])
-AM_CONDITIONAL(NEED_PCLMULQDQ_CRC32,  [test "x$have_crc32" = xyes -a "x$enable_crc32_crypto" = xyes])
-AM_CONDITIONAL(NEED_PCLMULQDQ_CRC32C, [test "x$enable_crc32c_crypto" = xyes])
-]) # LIBCFS_CONDITIONALS
-
-#
-# LIBCFS_CONFIG_FILES
-#
-# files that should be generated with AC_OUTPUT
-#
-AC_DEFUN([LIBCFS_CONFIG_FILES], [
-AC_CONFIG_FILES([
-libcfs/Makefile
-libcfs/autoMakefile
-libcfs/autoconf/Makefile
-libcfs/include/Makefile
-libcfs/include/libcfs/Makefile
-libcfs/include/libcfs/linux/Makefile
-libcfs/include/libcfs/util/Makefile
-libcfs/libcfs/Makefile
-libcfs/libcfs/autoMakefile
-libcfs/libcfs/linux/Makefile
-libcfs/libcfs/util/Makefile
-])
-]) # LIBCFS_CONFIG_FILES
