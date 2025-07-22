@@ -682,6 +682,7 @@ void usage(void)
 {
 	printf("Usage: %s: [OPTION]...\n"
 "Discover, read, batch, and write Lustre access logs\n"
+"Enable access logs by setting obdfilter.TARGET.access_log_size > 0, see sanity.sh\n"
 "\n"
 "Mandatory arguments to long options are mandatory for short options too.\n"
 "  -f, --batch-file=FILE          print batch to file (default stdout)\n"
