@@ -77,7 +77,7 @@ void __exit cfs_arch_exit(void)
 
 static unsigned int libcfs_reserved_cache;
 module_param(libcfs_reserved_cache, int, 0644);
-MODULE_PARM_DESC(libcfs_reserved_cache, "system page cache reservation in mbytes (for arc cache)");
+MODULE_PARM_DESC(libcfs_reserved_cache, "system page cache reservation in pages (for arc cache)");
 
 unsigned long compat_totalram_pages(void)
 {
